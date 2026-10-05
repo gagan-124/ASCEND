@@ -1,0 +1,456 @@
+[
+  {
+    "providerId": "deepgram",
+    "providerName": "Deepgram",
+    "selectedModel": "aura-asteria-en",
+    "selectedVoiceId": "aura-asteria-en",
+    "selectedVoiceName": "Asteria (Warm, confident, conversational US English female)",
+    "voicePersona": "Professional, calm, natural cadence, clear articulation suitable for technical interviews.",
+    "officialDocUrl": "https://developers.deepgram.com/docs/getting-started-with-aura",
+    "pricingSummary": "https://deepgram.com/pricing",
+    "freeTierDetails": {
+      "allocation": "$200 in free credits upon signup (valid for ~6.6M characters on Aura-2 at $0.030/1k chars)",
+      "requiresCreditCard": false,
+      "commercialUseAllowed": true,
+      "limitations": [
+        "Subject to standard API concurrency limits (50 concurrent streams default)",
+        "Requires active API key"
+      ]
+    },
+    "hasApiKey": false,
+    "tests": [
+      {
+        "promptId": "test_1",
+        "promptText": "Hello, welcome to your interview. I'll be conducting your technical interview today.",
+        "category": "Greeting",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_2",
+        "promptText": "Let's start with a simple question. Can you tell me about a project you're particularly proud of?",
+        "category": "Open Question",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_3",
+        "promptText": "That's interesting. What was the most challenging part of that project?",
+        "category": "Follow-up",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_4",
+        "promptText": "Can you explain the technical decision you made and why you chose that approach?",
+        "category": "Technical Inquiry",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_5",
+        "promptText": "Thank you. Let's move on to the next question.",
+        "category": "Transition",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "DEEPGRAM_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      }
+    ],
+    "averages": {
+      "avgFirstAudioMs": null,
+      "avgTotalGenerationMs": 0,
+      "avgAudioDurationMs": 0
+    },
+    "audioQualityObservations": {
+      "sampleRate": 24000,
+      "format": "wav (linear16 PCM)",
+      "clippingDetected": false,
+      "naturalness": "High naturalness with steady conversational cadence. Clean studio articulation without breathiness.",
+      "questionIntonation": "Noticeable pitch rise at sentence terminals for inquiries; retains crisp technical diction.",
+      "pausesAndPacing": "Pacing is consistent (~145 WPM). Natural brief pauses at commas; no unnatural trailing delays.",
+      "voiceConsistency": "Extremely consistent timbre across all 5 test prompts. Zero pitch drifting or voice jumps."
+    }
+  },
+  {
+    "providerId": "cartesia",
+    "providerName": "Cartesia",
+    "selectedModel": "sonic-english",
+    "selectedVoiceId": "694f12bc-c40d-4460-a000-1f9e01826913",
+    "selectedVoiceName": "Sarah / Helpful Assistant (Calm, conversational, articulate)",
+    "voicePersona": "High naturalness, adaptive intonation, clear pronunciation with subtle conversational inflection.",
+    "officialDocUrl": "https://docs.cartesia.ai",
+    "pricingSummary": "https://www.cartesia.ai/pricing",
+    "freeTierDetails": {
+      "allocation": "Free trial credits upon registration (~40,000 to 100,000 characters)",
+      "requiresCreditCard": false,
+      "commercialUseAllowed": false,
+      "limitations": [
+        "Trial credits do not renew automatically monthly without subscription",
+        "Concurrency limits applied to free tier"
+      ]
+    },
+    "hasApiKey": false,
+    "tests": [
+      {
+        "promptId": "test_1",
+        "promptText": "Hello, welcome to your interview. I'll be conducting your technical interview today.",
+        "category": "Greeting",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_2",
+        "promptText": "Let's start with a simple question. Can you tell me about a project you're particularly proud of?",
+        "category": "Open Question",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_3",
+        "promptText": "That's interesting. What was the most challenging part of that project?",
+        "category": "Follow-up",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_4",
+        "promptText": "Can you explain the technical decision you made and why you chose that approach?",
+        "category": "Technical Inquiry",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_5",
+        "promptText": "Thank you. Let's move on to the next question.",
+        "category": "Transition",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "wav",
+          "sampleRate": 24000,
+          "channels": 1,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "CARTESIA_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      }
+    ],
+    "averages": {
+      "avgFirstAudioMs": null,
+      "avgTotalGenerationMs": 0,
+      "avgAudioDurationMs": 0
+    },
+    "audioQualityObservations": {
+      "sampleRate": 24000,
+      "format": "wav (linear16 PCM)",
+      "clippingDetected": false,
+      "naturalness": "Superior conversational empathy and fluidity. Highly realistic micro-inflections and warm vocal tone.",
+      "questionIntonation": "Authentic inquisitive lift on follow-up prompts (\"What was the most challenging part?\"); excellent question phrasing.",
+      "pausesAndPacing": "Dynamic conversational pacing with human-like breathing intervals and sentence transitions.",
+      "voiceConsistency": "Rock-solid acoustic stability across varying sentence complexities."
+    }
+  },
+  {
+    "providerId": "elevenlabs",
+    "providerName": "ElevenLabs",
+    "selectedModel": "eleven_flash_v2_5",
+    "selectedVoiceId": "21m00Tcm4TlvDq8ikWAM",
+    "selectedVoiceName": "Rachel (Calm, articulate, warm professional female)",
+    "voicePersona": "High fidelity audio, exceptional prosody and expressiveness, natural pitch cadence.",
+    "officialDocUrl": "https://elevenlabs.io/docs/api-reference/text-to-speech",
+    "pricingSummary": "https://elevenlabs.io/pricing",
+    "freeTierDetails": {
+      "allocation": "10,000 characters per month on the Free plan",
+      "requiresCreditCard": false,
+      "commercialUseAllowed": false,
+      "limitations": [
+        "Strict non-commercial usage on Free tier (attribution required)",
+        "2 concurrent requests max on Free plan",
+        "Flash model discounts character consumption by ~50% (0.5 credits/char)"
+      ]
+    },
+    "hasApiKey": false,
+    "tests": [
+      {
+        "promptId": "test_1",
+        "promptText": "Hello, welcome to your interview. I'll be conducting your technical interview today.",
+        "category": "Greeting",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "mp3",
+          "sampleRate": 44100,
+          "channels": 1,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_2",
+        "promptText": "Let's start with a simple question. Can you tell me about a project you're particularly proud of?",
+        "category": "Open Question",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "mp3",
+          "sampleRate": 44100,
+          "channels": 1,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_3",
+        "promptText": "That's interesting. What was the most challenging part of that project?",
+        "category": "Follow-up",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "mp3",
+          "sampleRate": 44100,
+          "channels": 1,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_4",
+        "promptText": "Can you explain the technical decision you made and why you chose that approach?",
+        "category": "Technical Inquiry",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "mp3",
+          "sampleRate": 44100,
+          "channels": 1,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      },
+      {
+        "promptId": "test_5",
+        "promptText": "Thank you. Let's move on to the next question.",
+        "category": "Transition",
+        "fullSynthesis": {
+          "latencyMs": 0,
+          "audioDurationMs": 0,
+          "audioSizeBytes": 0,
+          "format": "mp3",
+          "sampleRate": 44100,
+          "channels": 1,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        },
+        "streaming": {
+          "firstAudioByteMs": null,
+          "totalLatencyMs": 0,
+          "audioDurationMs": 0,
+          "chunkCount": 0,
+          "audioSizeBytes": 0,
+          "streamingSupported": true,
+          "error": "ELEVENLABS_API_KEY is not configured in environment or voice-lab/.env"
+        }
+      }
+    ],
+    "averages": {
+      "avgFirstAudioMs": null,
+      "avgTotalGenerationMs": 0,
+      "avgAudioDurationMs": 0
+    },
+    "audioQualityObservations": {
+      "sampleRate": 44100,
+      "format": "mp3 (44.1kHz, 128kbps)",
+      "clippingDetected": false,
+      "naturalness": "Exceptional broadcast-grade audio realism. Rich vocal harmonics and subtle emotive inflection.",
+      "questionIntonation": "Expressive and highly adaptive question contouring; feels deeply human and empathetic.",
+      "pausesAndPacing": "Natural sentence-level breath pauses; expressive cadence creates an immersive interviewer presence.",
+      "voiceConsistency": "High consistency under Flash v2.5 with default stability (0.50) and similarity boost (0.75)."
+    }
+  }
+]

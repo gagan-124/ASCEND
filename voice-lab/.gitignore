@@ -1,0 +1,9 @@
+# Voice Lab Local Environment and Secrets
+.env
+.env.local
+.env.*.local
+
+# Build / Scratch
+node_modules/
+dist/
+*.log

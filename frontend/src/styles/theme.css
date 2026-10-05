@@ -1,0 +1,72 @@
+:root,
+:root.light {
+  /* Raw Brand Palette Tokens - Refined Editorial Paper & Deep Ink */
+  --ascend-ivory: #F6EFE4;
+  --ascend-beige: #E9DFD0;
+  --ascend-sand: #CDB58D;
+  --ascend-navy: #10253F;
+  --ascend-surface-elevated: #F1E8DC;
+
+  /* Typography Stack Tokens */
+  --font-satoshi: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-stardom: 'Stardom', serif;
+
+  /* Semantic Theme Tokens (Refined Warm Editorial Light Mode) */
+  --background: var(--ascend-ivory);
+  --foreground: var(--ascend-navy);
+  --foreground-muted: rgba(16, 37, 63, 0.68);
+  --surface: var(--ascend-beige);
+  --surface-muted: var(--ascend-surface-elevated);
+  --surface-opening: var(--ascend-ivory);
+  --border: rgba(16, 37, 63, 0.12);
+  --border-strong: rgba(16, 37, 63, 0.18);
+
+  --card: var(--ascend-beige);
+  --card-foreground: var(--ascend-navy);
+  --muted: var(--ascend-surface-elevated);
+  --muted-foreground: rgba(16, 37, 63, 0.68);
+
+  --primary: var(--ascend-navy);
+  --primary-foreground: var(--ascend-ivory);
+  --secondary: var(--ascend-beige);
+  --secondary-foreground: var(--ascend-navy);
+  --accent: var(--ascend-sand);
+  --accent-foreground: var(--ascend-navy);
+  --accent-soft: rgba(205, 181, 141, 0.22);
+
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-danger: #EF4444;
+}
+
+:root.dark,
+.dark {
+  /* Semantic Theme Tokens (Refined Deep Ink / Smoked Navy Dark Mode) */
+  --background: #06111E;
+  --foreground: #F6EFE4;
+  --foreground-muted: rgba(246, 239, 228, 0.68);
+  --surface: #0E1D30;
+  --surface-muted: #0A1626;
+  --surface-opening: #031326; /* ABSOLUTELY LOCKED - DO NOT MODIFY */
+  --border: rgba(246, 239, 228, 0.12);
+  --border-strong: rgba(246, 239, 228, 0.22);
+
+  --card: #0E1D30;
+  --card-foreground: #F6EFE4;
+  --muted: #0A1626;
+  --muted-foreground: rgba(246, 239, 228, 0.68);
+
+  --primary: var(--ascend-sand);
+  --primary-foreground: var(--ascend-navy);
+  --secondary: #162942;
+  --secondary-foreground: #F6EFE4;
+  --accent: var(--ascend-sand);
+  --accent-foreground: var(--ascend-navy);
+  --accent-soft: rgba(205, 181, 141, 0.15);
+
+  --status-success: #34D399;
+  --status-warning: #FBBF24;
+  --status-danger: #F87171;
+}
+
+

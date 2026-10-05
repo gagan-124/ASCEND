@@ -1,0 +1,55 @@
+/* Opening Animation Keyframe Architecture */
+@keyframes ascend-arrow-left-split {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-40px); }
+  100% { transform: translateX(-24px); }
+}
+
+@keyframes ascend-arrow-right-split {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(40px); }
+  100% { transform: translateX(24px); }
+}
+
+@keyframes ascend-reveal-name {
+  0% { opacity: 0; scale: 0.9; }
+  100% { opacity: 1; scale: 1; }
+}
+
+@keyframes ascend-navbar-transition {
+  0% { transform: translate(-50%, -50%) scale(1); top: 50%; left: 50%; }
+  100% { transform: translate(0, 0) scale(0.6); top: 1.5rem; left: 1.5rem; }
+}
+
+.animate-ascend-split-left {
+  animation: ascend-arrow-left-split 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-ascend-split-right {
+  animation: ascend-arrow-right-split 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-ascend-reveal-name {
+  animation: ascend-reveal-name 0.8s ease-out 0.4s forwards;
+}
+
+.animate-ascend-navbar-settle {
+  animation: ascend-navbar-transition 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Minimal theme-aware loading indicator for 3D Spline fallback */
+.loader {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border);
+  border-bottom-color: var(--accent);
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: ascend-spin 1s linear infinite;
+}
+
+@keyframes ascend-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

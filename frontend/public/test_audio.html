@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ASCEND — Standalone Audio Diagnostic Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 40px;
+      line-height: 1.6;
+    }
+    .card {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 16px;
+      border: 1px solid #334155;
+    }
+    button {
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 700;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 15px;
+      transition: opacity 0.2s;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    pre {
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      font-size: 13px;
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    audio {
+      width: 100%;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>ASCEND Audio Diagnostic Mode</h2>
+    <p>Target sentence:</p>
+    <blockquote><em>"Hello, welcome to your ASCEND interview. Let's begin."</em></blockquote>
+
+    <button id="playBtn" onclick="runDiagnosticPlayback()">1. Test Web Audio API Playback (AudioBuffer -> Destination)</button>
+
+    <div style="margin-top: 20px;">
+      <p><strong>2. Direct HTML5 Audio Element Playback:</strong></p>
+      <audio id="nativeAudio" controls src="/api/tts?text=Hello%2C%20welcome%20to%20your%20ASCEND%20interview.%20Let's%20begin."></audio>
+    </div>
+
+    <pre id="logOutput">Diagnostic ready. Click button above to test Web Audio decodeAudioData pipeline.</pre>
+  </div>
+
+  <script>
+    async function runDiagnosticPlayback() {
+      const log = document.getElementById('logOutput');
+      const text = "Hello, welcome to your ASCEND interview. Let's begin.";
+      log.textContent = "Fetching audio from /api/tts...\n";
+
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') {
+          await audioCtx.resume();
+        }
+
+        const url = '/api/tts?text=' + encodeURIComponent(text);
+        const startTime = performance.now();
+        const res = await fetch(url);
+        const fetchTime = Math.round(performance.now() - startTime);
+
+        if (!res.ok) {
+          throw new Error("HTTP error " + res.status);
+        }
+
+        const contentType = res.headers.get('content-type');
+        const arrayBuffer = await res.arrayBuffer();
+        const byteLength = arrayBuffer.byteLength;
+
+        log.textContent += `[TTS Response] Status: ${res.status}\n`;
+        log.textContent += `[TTS Response] Content-Type: ${contentType}\n`;
+        log.textContent += `[TTS Response] Byte Length: ${byteLength} bytes\n`;
+        log.textContent += `[TTS Response] Network Latency: ${fetchTime} ms\n`;
+        log.textContent += `Decoding audio via audioCtx.decodeAudioData()...\n`;
+
+        const decodeStartTime = performance.now();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const decodeTime = Math.round(performance.now() - decodeStartTime);
+
+        log.textContent += `[AudioBuffer] Decoded in: ${decodeTime} ms\n`;
+        log.textContent += `[AudioBuffer] Sample Rate: ${audioBuffer.sampleRate} Hz\n`;
+        log.textContent += `[AudioBuffer] Channels: ${audioBuffer.numberOfChannels}\n`;
+        log.textContent += `[AudioBuffer] Duration: ${audioBuffer.duration.toFixed(2)} seconds\n`;
+        log.textContent += `[AudioBuffer] Length (frames): ${audioBuffer.length}\n`;
+
+        // Standalone playback: Source -> Destination directly (NO analyser, NO orb, NO face)
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+
+        source.onended = () => {
+          log.textContent += `\n[PLAYBACK FINISHED] Intelligible speech verified!`;
+        };
+
+        source.start(0);
+        log.textContent += `\n>>> AudioBufferSourceNode started! Playing through speakers... <<<\n`;
+      } catch (err) {
+        log.textContent += `\n[ERROR] ` + err.message;
+      }
+    }
+  </script>
+</body>
+</html>

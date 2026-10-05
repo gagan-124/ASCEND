@@ -1,0 +1,21 @@
+{
+  "name": "ascend-voice-lab",
+  "version": "1.0.0",
+  "description": "ASCEND AI Voice Audition Lab - Isolated Evaluation Harness for AI TTS Providers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "benchmark": "node --experimental-strip-types scripts/benchmark.ts",
+    "test": "node --experimental-strip-types scripts/benchmark.ts"
+  },
+  "keywords": [
+    "ascend",
+    "voice-lab",
+    "tts-evaluation",
+    "deepgram",
+    "cartesia",
+    "elevenlabs"
+  ],
+  "author": "ASCEND AI Engineering",
+  "license": "UNLICENSED"
+}
