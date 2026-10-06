@@ -240,11 +240,11 @@ export const atsEvaluatorService = {
           experience_relevance: result.evaluation.experienceRelevance,
           resume_structure: result.evaluation.resumeStructure,
           ats_readability: result.evaluation.atsReadability,
-          strengths: result.strengths as any,
-          areas_to_improve: result.areasToImprove as any,
-          skill_matches: result.matchedSkills as any,
-          skill_gaps: result.missingSkills as any,
-          recommendations: result.recommendations as any,
+          strengths: result.strengths,
+          areas_to_improve: result.areasToImprove,
+          skill_matches: result.matchedSkills,
+          skill_gaps: result.missingSkills,
+          recommendations: result.recommendations,
         });
       } catch (err) {
         console.error('Failed to persist ATS evaluation to Supabase:', err);

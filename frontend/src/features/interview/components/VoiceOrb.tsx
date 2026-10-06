@@ -11,7 +11,6 @@ export interface VoiceOrbProps {
 }
 
 export const VoiceOrb: React.FC<VoiceOrbProps> = ({
-  activityLevel: _activityLevel = 0,
   isSpeaking = false,
   state = 'LISTENING',
   className,

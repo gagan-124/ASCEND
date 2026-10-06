@@ -43,19 +43,25 @@ export function useAudioMeter(stream: MediaStream | null) {
     if (sourceRef.current) {
       try {
         sourceRef.current.disconnect();
-      } catch {}
+      } catch {
+        // Safe to ignore if source is already disconnected
+      }
       sourceRef.current = null;
     }
     if (analyserRef.current) {
       try {
         analyserRef.current.disconnect();
-      } catch {}
+      } catch {
+        // Safe to ignore if analyser is already disconnected
+      }
       analyserRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
       try {
         audioContextRef.current.close().catch(() => {});
-      } catch {}
+      } catch {
+        // Safe to ignore if audio context is already closing/closed
+      }
       audioContextRef.current = null;
     }
   }, []);
@@ -81,7 +87,7 @@ export function useAudioMeter(stream: MediaStream | null) {
     let isMounted = true;
 
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       const audioCtx = new AudioCtx();
       audioContextRef.current = audioCtx;
 
@@ -163,7 +169,9 @@ export function useAudioMeter(stream: MediaStream | null) {
     if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       try {
         await audioContextRef.current.resume();
-      } catch {}
+      } catch {
+        // Safe to ignore if resume fails or context state changed
+      }
     }
 
     if (!stream || stream.getAudioTracks().length === 0) {

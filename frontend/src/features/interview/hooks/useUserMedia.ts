@@ -57,7 +57,9 @@ export function useUserMedia() {
               track.onmute = null;
               track.onunmute = null;
               track.stop();
-            } catch {}
+            } catch {
+              // Safe to ignore if track stop fails
+            }
           }
         });
       }
@@ -154,10 +156,11 @@ export function useUserMedia() {
         }));
 
         await enumerateDevices();
-      } catch (err: any) {
-        console.error('[MEDIA] getUserMedia failed. Error name:', err.name, 'message:', err.message);
+      } catch (err: unknown) {
+        const mediaErr = err as { name?: string; message?: string } | null;
+        console.error('[MEDIA] getUserMedia failed. Error name:', mediaErr?.name, 'message:', mediaErr?.message);
         stopTracks();
-        const errName = err.name || '';
+        const errName = mediaErr?.name || '';
 
         let cameraErr = 'Could not access camera.';
         let micErr = 'Could not access microphone.';

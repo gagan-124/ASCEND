@@ -38,7 +38,7 @@ export function saveInterviewResult(result: InterviewResult): void {
             completed_at: new Date().toISOString(),
             overall_score: result.overallScore,
             ai_summary: result.aiSummary,
-            transcript: (result.transcript || []) as any,
+            transcript: result.transcript || [],
           })
           .eq('id', result.interviewId);
 

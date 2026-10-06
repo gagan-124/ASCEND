@@ -37,10 +37,13 @@ export class AscendRealTTSProvider implements ITTSProvider {
     }
 
     // 2. Secondary: Puter.js client-side AI TTS (if present on window)
-    if (typeof window !== 'undefined' && (window as any).puter?.ai?.txt2speech) {
+    const puterWin = window as unknown as {
+      puter?: { ai?: { txt2speech?: (text: string) => Promise<HTMLAudioElement> } };
+    };
+    if (typeof window !== 'undefined' && puterWin.puter?.ai?.txt2speech) {
       try {
         console.log('[ASCEND TTS] Requesting speech via Puter.js...');
-        const audioEl: HTMLAudioElement = await (window as any).puter.ai.txt2speech(targetText);
+        const audioEl: HTMLAudioElement = await puterWin.puter.ai.txt2speech(targetText);
         if (audioEl && audioEl.src) {
           const puterRes = await fetch(audioEl.src);
           const puterBuffer = await puterRes.arrayBuffer();
@@ -71,7 +74,7 @@ export function useVoiceSynthesizer(ttsProvider: ITTSProvider = defaultTTSProvid
   // Initialize or retrieve active AudioContext
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       audioContextRef.current = new AudioCtx();
     }
     return audioContextRef.current;

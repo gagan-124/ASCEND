@@ -84,7 +84,7 @@ export const apiClient = {
     return request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: isFormData ? (body as FormData) : (JSON.stringify(body) as any),
+      body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
     });
   },
   put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) => {
@@ -92,7 +92,7 @@ export const apiClient = {
     return request<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: isFormData ? (body as FormData) : (JSON.stringify(body) as any),
+      body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
     });
   },
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) => {
@@ -100,7 +100,7 @@ export const apiClient = {
     return request<T>(endpoint, {
       ...options,
       method: 'PATCH',
-      body: isFormData ? (body as FormData) : (JSON.stringify(body) as any),
+      body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
     });
   },
   delete: <T>(endpoint: string, options?: RequestOptions) => request<T>(endpoint, { ...options, method: 'DELETE' }),

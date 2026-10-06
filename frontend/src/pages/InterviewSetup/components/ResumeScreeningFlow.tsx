@@ -112,8 +112,9 @@ export const ResumeScreeningFlow: React.FC<ResumeScreeningFlowProps> = ({
           selectedRoleTitle: firstRole,
         });
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to process resume document. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : (err as { message?: string })?.message;
+      setErrorMessage(message || 'Failed to process resume document. Please try again.');
     } finally {
       setIsParsing(false);
     }

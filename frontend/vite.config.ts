@@ -67,10 +67,11 @@ export default defineConfig({
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Cache-Control', 'public, max-age=3600');
             res.end(combined);
-          } catch (err: any) {
+          } catch (err: unknown) {
+            const errMsg = err instanceof Error ? err.message : (err as { message?: string })?.message;
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: err?.message || 'Internal TTS server error' }));
+            res.end(JSON.stringify({ error: errMsg || 'Internal TTS server error' }));
           }
         });
       },

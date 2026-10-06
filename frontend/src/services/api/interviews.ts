@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from './client';
 import type { InterviewSession, CreateInterviewPayload, SubmitAnswerPayload, TerminationReason } from '@/types/interview';
+import type { QuestionCategory } from '@/types/question';
 
 // In-memory backend session store for development mode fallback
 const mockSessionStore = new Map<string, InterviewSession>();
@@ -59,7 +60,7 @@ export const interviewsApi = {
           const questionsList = (questionRows || []).map((q) => ({
             id: q.id,
             text: q.question,
-            category: (q.category as any) || 'technical',
+            category: (q.category as QuestionCategory) || 'technical',
             difficulty: 'medium' as const,
             timeLimitSeconds: 180,
           }));

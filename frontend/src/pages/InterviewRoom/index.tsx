@@ -178,7 +178,7 @@ export function InterviewRoomPage() {
     let audioCtx: AudioContext;
 
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       audioCtx = new AudioCtx();
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
@@ -206,7 +206,9 @@ export function InterviewRoomPage() {
       };
 
       updateLevel();
-    } catch {}
+    } catch {
+      // Safe to ignore if candidate mic AudioContext cannot be initialized
+    }
 
     return () => {
       if (animFrame) cancelAnimationFrame(animFrame);

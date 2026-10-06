@@ -170,7 +170,7 @@ export const InterviewProfileSection: React.FC<InterviewProfileSectionProps> = (
               <button
                 key={level.id}
                 type="button"
-                onClick={() => handleSelectLevel(level.id as any)}
+                onClick={() => handleSelectLevel(level.id)}
                 className={cn(
                   'py-2.5 px-3 text-xs font-mono uppercase tracking-wider rounded-xl border transition-all cursor-pointer text-center select-none',
                   isSelected
@@ -197,7 +197,7 @@ export const InterviewProfileSection: React.FC<InterviewProfileSectionProps> = (
               <button
                 key={diff.id}
                 type="button"
-                onClick={() => handleSelectDifficulty(diff.id as any)}
+                onClick={() => handleSelectDifficulty(diff.id)}
                 className={cn(
                   'p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none space-y-1',
                   isSelected
