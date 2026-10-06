@@ -1,10 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useParams } from 'react-router-dom';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { InterviewLayout } from '@/layouts/InterviewLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { RouteLoader } from '@/components/common/RouteLoader';
+import { RouteLoader, AppSessionLoader } from '@/components/common';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useInterviewStore } from '@/stores/interviewStore';
@@ -29,7 +29,10 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
 
 // Route Protection Shell Components
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitialized } = useAuthStore();
+  if (!isInitialized) {
+    return <AppSessionLoader statusText="Verifying security session..." />;
+  }
   if (!isAuthenticated) {
     return <Navigate to="/auth/login" replace />;
   }
@@ -37,14 +40,19 @@ function ProtectedRoute() {
 }
 
 function InterviewSessionRoute() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitialized } = useAuthStore();
   const { sessionId } = useInterviewStore();
+  const { interviewId } = useParams();
+
+  if (!isInitialized) {
+    return <AppSessionLoader statusText="Restoring interview workspace..." />;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/auth/login" replace />;
   }
-  // Backend remains authoritative for active interview session validation
-  if (!sessionId) {
+  // Allow access if active sessionId exists or URL parameter contains interviewId
+  if (!sessionId && !interviewId) {
     return <Navigate to="/interview/setup" replace />;
   }
   return <Outlet />;

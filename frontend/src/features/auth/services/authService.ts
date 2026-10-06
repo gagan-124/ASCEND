@@ -33,7 +33,87 @@ export function parseAuthError(error: unknown): string {
   return msg;
 }
 
+import type { Session } from '@supabase/supabase-js';
+
+async function buildUserProfileFromSession(session: Session): Promise<UserProfile> {
+  const email = session.user.email ?? '';
+  let fullName = session.user.user_metadata?.full_name || email.split('@')[0];
+  let avatarUrl = session.user.user_metadata?.avatar_url || undefined;
+
+  if (supabase) {
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profile) {
+        fullName = profile.full_name || fullName;
+        avatarUrl = profile.avatar_path || avatarUrl;
+      }
+    } catch {
+      // Ignore profile lookup error
+    }
+  }
+
+  return {
+    id: session.user.id,
+    email,
+    fullName,
+    avatarUrl,
+    createdAt: session.user.created_at,
+  };
+}
+
 export const authService = {
+  /**
+   * Initializes Supabase Auth listener and restores session on application mount.
+   * Single source of truth: Supabase Auth session -> Auth Store -> UI.
+   */
+  async initializeAuth(): Promise<void> {
+    if (!supabase) {
+      useAuthStore.getState().setInitialized(true);
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        const userProfile = await buildUserProfileFromSession(session);
+        useAuthStore.getState().setAuth(userProfile, session.access_token);
+      } else {
+        useAuthStore.getState().clearAuth();
+      }
+    } catch (err) {
+      console.error('[AUTH] Session restoration failed:', err);
+      useAuthStore.getState().clearAuth();
+    } finally {
+      useAuthStore.getState().setInitialized(true);
+    }
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[AUTH] Auth state changed: ${event}`);
+      if (session && session.user) {
+        const userProfile = await buildUserProfileFromSession(session);
+        useAuthStore.getState().setAuth(userProfile, session.access_token);
+      } else if (event === 'SIGNED_OUT' || !session) {
+        useAuthStore.getState().clearAuth();
+      }
+    });
+  },
+
+  async signOut(): Promise<void> {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('[AUTH] Sign out error:', err);
+      }
+    }
+    useAuthStore.getState().clearAuth();
+  },
+
   async signInWithEmail(email: string, password: string): Promise<AuthResponse> {
     try {
       if (!supabase) {
@@ -60,38 +140,7 @@ export const authService = {
       }
 
       if (data.session && data.user) {
-        let fullName = data.user.user_metadata?.full_name || email.split('@')[0];
-        let avatarUrl = data.user.user_metadata?.avatar_url || undefined;
-
-        // Fetch or create public.profiles record idempotently
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .maybeSingle();
-
-          if (profile) {
-            fullName = profile.full_name || fullName;
-            avatarUrl = profile.avatar_path || avatarUrl;
-          } else {
-            await supabase.from('profiles').upsert({
-              id: data.user.id,
-              full_name: fullName,
-              avatar_path: avatarUrl || null,
-            });
-          }
-        } catch {
-          // Fall back gracefully if profile lookup fails
-        }
-
-        const userProfile: UserProfile = {
-          id: data.user.id,
-          email: data.user.email ?? email,
-          fullName,
-          avatarUrl,
-          createdAt: data.user.created_at,
-        };
+        const userProfile = await buildUserProfileFromSession(data.session);
         useAuthStore.getState().setAuth(userProfile, data.session.access_token);
         return { success: true, user: userProfile };
       }
@@ -128,13 +177,7 @@ export const authService = {
       }
 
       if (data.session && data.user) {
-        const userProfile: UserProfile = {
-          id: data.user.id,
-          email: data.user.email ?? email,
-          fullName: data.user.user_metadata?.full_name ?? email.split('@')[0],
-          avatarUrl: undefined,
-          createdAt: data.user.created_at,
-        };
+        const userProfile = await buildUserProfileFromSession(data.session);
         useAuthStore.getState().setAuth(userProfile, data.session.access_token);
         return { success: true, user: userProfile };
       }

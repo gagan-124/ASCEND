@@ -83,15 +83,13 @@ export function useProctoring({
     }
   }, [candidateSpeaking, isActiveSession, currentState, isMediaPaused, resetCandidateInactivity]);
 
-  // 1. Refresh Detection vs Page Unload
+  // 1. Session Persistence & Page Refresh Handling
   useEffect(() => {
     if (!isActiveSession || !sessionId) return;
 
     const handleBeforeUnload = () => {
-      // Set refresh marker in sessionStorage to differentiate reload from tab-switch
-      sessionStorage.setItem('ascend_refresh_pending', sessionId);
-      // Dispatch unload-safe keepalive fetch to backend
-      handleTerminate('PAGE_RELOAD', true);
+      // Retain active session in sessionStorage so reloads re-hydrate cleanly
+      sessionStorage.setItem('ascend_active_session_id', sessionId);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -99,22 +97,15 @@ export function useProctoring({
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [isActiveSession, sessionId, handleTerminate]);
+  }, [isActiveSession, sessionId]);
 
-  // 2. Tab Switch / Page Visibility Listener (with Refresh Precedence)
+  // 2. Tab Switch / Page Visibility Listener
   useEffect(() => {
     if (!isActiveSession || !sessionId) return;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Check if page reload is currently pending
-        const refreshMarker = sessionStorage.getItem('ascend_refresh_pending');
-        if (refreshMarker === sessionId) {
-          // Precedence: Browser Reload handles termination via keepalive PAGE_RELOAD
-          return;
-        }
-
-        // Candidate navigated away / switched tabs while interview is IN_PROGRESS
+        // Candidate navigated away / switched tabs while interview is active
         handleTerminate('TAB_SWITCH');
       }
     };
@@ -125,16 +116,6 @@ export function useProctoring({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isActiveSession, sessionId, handleTerminate]);
-
-  // Check on mount if session was terminated via page reload
-  useEffect(() => {
-    if (!sessionId) return;
-    const refreshMarker = sessionStorage.getItem('ascend_refresh_pending');
-    if (refreshMarker === sessionId) {
-      sessionStorage.removeItem('ascend_refresh_pending');
-      handleTerminate('PAGE_RELOAD');
-    }
-  }, [sessionId, handleTerminate]);
 
   // 3. Media Proctoring Monitor (Actual MediaStreamTrack state inspection)
   useEffect(() => {

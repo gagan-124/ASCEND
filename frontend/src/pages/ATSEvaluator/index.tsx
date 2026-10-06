@@ -37,7 +37,8 @@ export function ATSEvaluatorPage() {
       setState('result');
     } catch (err) {
       console.error('ATS evaluation error:', err);
-      setError('Evaluation failed. Please verify your file format and try again.');
+      const msg = err instanceof Error ? err.message : 'Evaluation failed. Please verify your file format and try again.';
+      setError(msg);
       setState('idle');
     }
   };

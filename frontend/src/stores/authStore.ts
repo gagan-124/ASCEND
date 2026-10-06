@@ -5,20 +5,26 @@ interface AuthState {
   user: UserProfile | null;
   token: string | null;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   setAuth: (user: UserProfile, token: string) => void;
   clearAuth: () => void;
+  setInitialized: (initialized: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: localStorage.getItem('ascend_auth_token'),
-  isAuthenticated: Boolean(localStorage.getItem('ascend_auth_token')),
+  token: null,
+  isAuthenticated: false,
+  isInitialized: false,
   setAuth: (user, token) => {
-    localStorage.setItem('ascend_auth_token', token);
-    set({ user, token, isAuthenticated: true });
+    set({ user, token, isAuthenticated: true, isInitialized: true });
   },
   clearAuth: () => {
-    localStorage.removeItem('ascend_auth_token');
-    set({ user: null, token: null, isAuthenticated: false });
+    set({ user: null, token: null, isAuthenticated: false, isInitialized: true });
+  },
+  setInitialized: (isInitialized) => {
+    set({ isInitialized });
   },
 }));
+
+

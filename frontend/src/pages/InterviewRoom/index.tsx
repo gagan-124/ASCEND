@@ -216,7 +216,7 @@ export function InterviewRoomPage() {
     };
   }, [candidateStream, isMicMuted, isTerminated, resetCandidateInactivity]);
 
-  // Fullscreen Enforcement Listener (Proctoring Violation if user exits fullscreen)
+  // Fullscreen Enforcement Listener (Proctoring Violation if user exits active fullscreen)
   useEffect(() => {
     if (!deviceCheckComplete || isTerminated) return;
 
@@ -233,17 +233,30 @@ export function InterviewRoomPage() {
     };
   }, [deviceCheckComplete, isTerminated, handleTerminate]);
 
-  // Pre-Flight Completion Handler: Request browser fullscreen on user gesture
+  // Pre-Flight Completion Handler: Enforce mandatory browser fullscreen capability & gesture
   const handleDeviceCheckComplete = async () => {
     setInitError(null);
     setInitStep('environment');
 
-    try {
-      // Enter Fullscreen via user click gesture
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
+    // 1. Mandatory Environment Capability Check
+    const isFullscreenSupported = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled && document.documentElement.requestFullscreen);
+    if (!isFullscreenSupported) {
+      setInitError('ASCEND Proctoring Policy requires a desktop browser supporting full-screen mode. Your current browser or device environment does not support full-screen proctoring.');
+      return;
+    }
 
+    try {
+      // 2. Request and await browser fullscreen entry gesture
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (fsErr) {
+      console.error('[Proctoring] Fullscreen request rejected or denied:', fsErr);
+      setInitError('Full-screen mode is required to begin your proctored interview. Please grant full-screen permissions and try again.');
+      return;
+    }
+
+    try {
       await resumeAudioContext();
 
       setInitStep('media');
@@ -350,7 +363,7 @@ export function InterviewRoomPage() {
     }
   };
 
-  const handleViewResults = () => {
+  const handleViewResults = async () => {
     stopCandidateMedia();
     const targetId = sessionId || 'int-2026-0918-78a';
 
@@ -362,7 +375,7 @@ export function InterviewRoomPage() {
       timestamp: t.timestamp,
     }));
 
-    processRawEvaluationToResult({
+    await processRawEvaluationToResult({
       sessionId: targetId,
       roleTitle: setupConfig.selectedRoleTitle || 'SOFTWARE ENGINEER',
       experienceLevel: setupConfig.experienceLevel || 'Mid',

@@ -48,17 +48,42 @@ const initialSetupConfig: InterviewSetupConfig = {
   jobDescription: null,
 };
 
+const SESSION_STORAGE_KEY = 'ascend_active_session_id';
+
+function getInitialSessionId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return sessionStorage.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export const useInterviewStore = create<InterviewSessionState>((set) => ({
-  sessionId: null,
+  sessionId: getInitialSessionId(),
   currentState: 'SETUP',
   questions: [],
   currentQuestionIndex: 0,
   setupConfig: initialSetupConfig,
   setSetupConfig: (config) =>
     set((state) => ({ setupConfig: { ...state.setupConfig, ...config } })),
-  setSession: (id, questions) => set({ sessionId: id, questions, currentQuestionIndex: 0, currentState: 'READY' }),
+  setSession: (id, questions) => {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, id);
+    } catch {
+      // Safe ignore
+    }
+    set({ sessionId: id, questions, currentQuestionIndex: 0, currentState: 'READY' });
+  },
   setState: (currentState) => set({ currentState }),
   nextQuestion: () => set((state) => ({ currentQuestionIndex: Math.min(state.currentQuestionIndex + 1, state.questions.length - 1) })),
-  resetSession: () => set({ sessionId: null, currentState: 'SETUP', questions: [], currentQuestionIndex: 0, setupConfig: initialSetupConfig }),
+  resetSession: () => {
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // Safe ignore
+    }
+    set({ sessionId: null, currentState: 'SETUP', questions: [], currentQuestionIndex: 0, setupConfig: initialSetupConfig });
+  },
 }));
 

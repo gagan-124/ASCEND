@@ -216,15 +216,27 @@ export function useVoiceSynthesizer(ttsProvider: ITTSProvider = defaultTTSProvid
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.rate = 1.0;
             utterance.pitch = 1.0;
-            utterance.onstart = () => setIsSpeaking(true);
-            utterance.onend = () => {
+
+            let levelInterval: number | null = null;
+
+            const startSimulatedLevels = () => {
+              setIsSpeaking(true);
+              levelInterval = window.setInterval(() => {
+                const simulatedLevel = Math.floor(Math.random() * 45) + 40;
+                setAudioLevel(simulatedLevel);
+              }, 100);
+            };
+
+            const clearSimulatedLevels = () => {
+              if (levelInterval) clearInterval(levelInterval);
               setIsSpeaking(false);
               setAudioLevel(0);
             };
-            utterance.onerror = () => {
-              setIsSpeaking(false);
-              setAudioLevel(0);
-            };
+
+            utterance.onstart = startSimulatedLevels;
+            utterance.onend = clearSimulatedLevels;
+            utterance.onerror = clearSimulatedLevels;
+
             window.speechSynthesis.speak(utterance);
             return;
           } catch {

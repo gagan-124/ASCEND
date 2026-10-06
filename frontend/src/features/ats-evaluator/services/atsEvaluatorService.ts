@@ -59,26 +59,84 @@ function extractJobContext(jdText: string): { title?: string; company?: string }
 }
 
 /**
- * Extracts raw text from File (handles plain text/docx simulation or PDF text reading).
+ * Extracts raw text from uploaded File objects using real PDF (pdfjs-dist) and DOCX (mammoth) parsers.
+ * Dynamically imports parsing dependencies to keep initial bundle light.
+ * Throws explicit errors on empty, corrupt, or unsupported documents.
  */
 async function extractResumeText(file: File): Promise<string> {
-  try {
-    const text = await file.text();
-    // If string contains plain text readable characters
-    if (text && text.length > 50 && !text.startsWith('%PDF')) {
-      return text;
+  const nameLower = file.name.toLowerCase();
+
+  // 1. Plain text documents (.txt, .md, .csv, .json)
+  if (nameLower.endsWith('.txt') || nameLower.endsWith('.md') || nameLower.endsWith('.csv') || nameLower.endsWith('.json')) {
+    try {
+      const text = await file.text();
+      const cleaned = text.trim();
+      if (cleaned.length >= 20) {
+        return cleaned;
+      }
+      throw new Error(`The text document "${file.name}" is empty or contains insufficient text.`);
+    } catch (err) {
+      if (err instanceof Error) throw err;
+      throw new Error(`Failed to read text file "${file.name}".`);
     }
-  } catch {
-    // Binary or unreadable directly via text()
   }
 
-  // Simulated extracted text representation for DOCX/PDF binary files in V1 prototype
-  return `SENIOR SOFTWARE ENGINEER
-Technical Skills: TypeScript, React, Node.js, PostgreSQL, REST APIs, System Architecture, Docker, Git.
-Experience:
-- Senior Full-Stack Engineer (2021 - Present): Designed distributed microservices, optimized query latency, and authored design tokens.
-- Software Engineer (2018 - 2021): Built high-throughput API endpoints and customer dashboard features.
-Education: B.S. Computer Science.`;
+  // 2. PDF Documents via pdfjs-dist
+  if (nameLower.endsWith('.pdf')) {
+    try {
+      const pdfjs = await import('pdfjs-dist');
+      if (typeof window !== 'undefined' && pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+      }
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const tokenContent = await page.getTextContent();
+        const pageText = tokenContent.items
+          .map((item) => ('str' in item ? item.str : ''))
+          .join(' ');
+        fullText += pageText + '\n';
+      }
+
+      const cleaned = fullText.replace(/\s+/g, ' ').trim();
+      const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+
+      if (wordCount >= 10) {
+        return cleaned;
+      }
+      throw new Error(`The PDF document "${file.name}" contains no selectable text (scanned image or empty PDF).`);
+    } catch (err) {
+      if (err instanceof Error) throw err;
+      throw new Error(`Failed to parse PDF document "${file.name}". Ensure the file is a valid PDF.`);
+    }
+  }
+
+  // 3. DOCX Documents via mammoth
+  if (nameLower.endsWith('.docx') || nameLower.endsWith('.doc')) {
+    try {
+      const mammoth = await import('mammoth');
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const cleaned = (result.value || '').replace(/\s+/g, ' ').trim();
+      const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+
+      if (wordCount >= 10) {
+        return cleaned;
+      }
+      throw new Error(`The Word document "${file.name}" contains no readable text.`);
+    } catch (err) {
+      if (err instanceof Error) throw err;
+      throw new Error(`Failed to parse Word document "${file.name}". Ensure it is a valid DOCX file.`);
+    }
+  }
+
+  // 4. Unsupported extension
+  const ext = file.name.includes('.') ? file.name.split('.').pop()?.toUpperCase() : 'UNKNOWN';
+  throw new Error(`Unsupported file format (.${ext}). Please upload a PDF (.pdf), Word document (.docx), or text file (.txt).`);
 }
 
 export const atsEvaluatorService = {

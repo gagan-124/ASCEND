@@ -17,7 +17,7 @@ export function getSavedInterviewResults(): Record<string, InterviewResult> {
   return {};
 }
 
-export function saveInterviewResult(result: InterviewResult): void {
+export async function saveInterviewResult(result: InterviewResult): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
     const current = getSavedInterviewResults();
@@ -29,43 +29,41 @@ export function saveInterviewResult(result: InterviewResult): void {
 
   // Also persist to Supabase if connected
   if (supabase) {
-    (async () => {
-      try {
-        await supabase
-          .from('interviews')
-          .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-            overall_score: result.overallScore,
-            ai_summary: result.aiSummary,
-            transcript: result.transcript || [],
-          })
-          .eq('id', result.interviewId);
+    try {
+      await supabase
+        .from('interviews')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+          overall_score: result.overallScore,
+          ai_summary: result.aiSummary,
+          transcript: result.transcript || [],
+        })
+        .eq('id', result.interviewId);
 
-        await supabase
-          .from('interview_metrics')
-          .upsert({
-            interview_id: result.interviewId,
-            answer_correctness: result.generalPerformance.answerCorrectness,
-            communication: result.generalPerformance.communication,
-            clarity: result.generalPerformance.clarity,
-            delivery_confidence: result.generalPerformance.deliveryConfidence,
-            problem_solving: result.generalPerformance.problemSolving,
-          }, { onConflict: 'interview_id' });
+      await supabase
+        .from('interview_metrics')
+        .upsert({
+          interview_id: result.interviewId,
+          answer_correctness: result.generalPerformance.answerCorrectness,
+          communication: result.generalPerformance.communication,
+          clarity: result.generalPerformance.clarity,
+          delivery_confidence: result.generalPerformance.deliveryConfidence,
+          problem_solving: result.generalPerformance.problemSolving,
+        }, { onConflict: 'interview_id' });
 
-        if (result.roleSpecificMetrics && result.roleSpecificMetrics.length > 0) {
-          const domainRows = result.roleSpecificMetrics.map((r) => ({
-            interview_id: result.interviewId,
-            domain: r.name,
-            score: r.score,
-          }));
-          await supabase.from('interview_domain_scores').delete().eq('interview_id', result.interviewId);
-          await supabase.from('interview_domain_scores').insert(domainRows);
-        }
-      } catch (err) {
-        console.error('Error saving result to Supabase:', err);
+      if (result.roleSpecificMetrics && result.roleSpecificMetrics.length > 0) {
+        const domainRows = result.roleSpecificMetrics.map((r) => ({
+          interview_id: result.interviewId,
+          domain: r.name,
+          score: r.score,
+        }));
+        await supabase.from('interview_domain_scores').delete().eq('interview_id', result.interviewId);
+        await supabase.from('interview_domain_scores').insert(domainRows);
       }
-    })();
+    } catch (err) {
+      console.error('Error saving result to Supabase:', err);
+    }
   }
 }
 

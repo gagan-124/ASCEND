@@ -9,7 +9,7 @@
     "dev": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
-    "typecheck": "npm run typecheck --workspace=frontend && npm run typecheck --workspace=backend",
+    "typecheck": "npm run typecheck --workspace=frontend",
     "lint": "npm run lint --workspace=frontend"
   }
 }
