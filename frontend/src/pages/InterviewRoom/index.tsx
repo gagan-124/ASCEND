@@ -21,6 +21,7 @@ import {
   useUserMedia,
   useVoiceSynthesizer,
   useProctoring,
+  useFaceDetection,
 } from '@/features/interview';
 import { processRawEvaluationToResult, type TranscriptLine } from '@/features/results';
 import type { InterviewState } from '@/config/interviewConfig';
@@ -67,11 +68,20 @@ export function InterviewRoomPage() {
     },
   ]);
 
+  const candidateVideoRef = useRef<HTMLVideoElement | null>(null);
+
   // 1. Candidate User Media Stream Hook (Centralized Single Stream Owner)
   const media = useUserMedia();
   const { stream: candidateStream, requestMedia: requestCandidateMedia, stopTracks } = media;
 
-  // 2. TTS Hook
+  // 2. Face Detection Hook for Live Interview Session
+  const { faceState: liveFaceState } = useFaceDetection({
+    stream: candidateStream,
+    videoRef: candidateVideoRef,
+    enabled: deviceCheckComplete && !isCameraOff && roomState !== 'COMPLETE' && roomState !== 'TERMINATED',
+  });
+
+  // 3. TTS Hook
   const {
     stop: stopTTS,
     isSpeaking: isTtsSpeaking,
@@ -90,7 +100,7 @@ export function InterviewRoomPage() {
     setCandidateAudioLevel(0);
   }, [stopTTS, stopTracks]);
 
-  // 3. Proctoring & Session Management Hook
+  // 4. Proctoring & Session Management Hook
   const {
     isTerminated,
     terminationReason,
@@ -105,6 +115,7 @@ export function InterviewRoomPage() {
     currentState: roomState,
     candidateSpeaking: isCandidateSpeaking,
     stream: candidateStream,
+    faceState: liveFaceState,
     onTerminated: () => {
       stopCandidateMedia();
     },
@@ -443,6 +454,7 @@ export function InterviewRoomPage() {
           />
 
           <CandidateCamera
+            videoRef={candidateVideoRef}
             stream={candidateStream}
             isCameraOff={isCameraOff}
             isMicMuted={isMicMuted}

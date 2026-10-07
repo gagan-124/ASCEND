@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useUserMedia } from '../hooks/useUserMedia';
 import { useAudioMeter } from '../hooks/useAudioMeter';
+import { useFaceDetection } from '../hooks/useFaceDetection';
 
 export interface PreFlightDeviceCheckProps {
   onComplete: () => Promise<void> | void;
@@ -70,6 +71,7 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
     const videoElement = videoRef.current;
     if (videoElement && stream) {
       videoElement.srcObject = stream;
+      videoElement.play().catch(() => {});
     }
     return () => {
       if (videoElement) {
@@ -117,8 +119,19 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
   };
 
   const isCameraReady = cameraGranted && !cameraError && Boolean(stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].readyState === 'live');
+
+  const {
+    faceState,
+    guidanceMessage,
+    isReady: isFaceReady,
+  } = useFaceDetection({
+    stream,
+    videoRef,
+    enabled: isCameraReady,
+  });
+
   const isMicReady = micGranted && !isMicHardwareMuted && Boolean(stream && stream.getAudioTracks().length > 0 && stream.getAudioTracks()[0].readyState === 'live');
-  const isAllReady = isCameraReady && isMicReady && testPassed === true;
+  const isAllReady = isCameraReady && isMicReady && testPassed === true && isFaceReady;
 
   const cameras = devices.filter((d) => d.kind === 'videoinput');
   const mics = devices.filter((d) => d.kind === 'audioinput');
@@ -145,7 +158,7 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
               PRE-FLIGHT HARDWARE VERIFICATION
             </h2>
             <p className="text-[11px] font-sans text-foreground/60">
-              ASCEND mandatory device & audio check
+              ASCEND mandatory device & face proctoring check
             </p>
           </div>
         </div>
@@ -167,15 +180,22 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
             <div className="flex items-center gap-2">
               <Camera className="w-4 h-4 text-foreground/70" />
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-foreground">
-                1. CAMERA PREVIEW
+                1. CAMERA & FACE PROCTORING PREVIEW
               </span>
             </div>
 
             {isCameraReady ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-semibold uppercase">
-                <CheckCircle2 className="w-3 h-3" />
-                Camera Ready
-              </span>
+              isFaceReady ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-[10px] font-mono font-semibold uppercase">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Face Verified (1 Person)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-mono font-semibold uppercase">
+                  <AlertCircle className="w-3 h-3" />
+                  {faceState === 'INITIALIZING' ? 'Loading Face Model...' : 'Face Check Pending'}
+                </span>
+              )
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-mono font-semibold uppercase">
                 <AlertCircle className="w-3 h-3" />
@@ -212,6 +232,25 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
               </div>
             )}
           </div>
+
+          {/* Face Guidance Banner */}
+          {isCameraReady && (
+            <div
+              className={cn(
+                'p-2.5 rounded-lg text-xs font-mono font-medium flex items-center gap-2 transition-all',
+                isFaceReady
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200'
+              )}
+            >
+              {isFaceReady ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              ) : (
+                <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0" />
+              )}
+              <span>{guidanceMessage}</span>
+            </div>
+          )}
 
           {/* Optional Camera Selector */}
           {cameras.length > 1 && (
@@ -419,7 +458,9 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
                 ? '● Camera check pending'
                 : !isMicReady
                 ? '● Microphone check pending'
-                : '● Complete & pass 10-sec Mic Test to continue'}
+                : testPassed !== true
+                ? '● Complete & pass 10-sec Mic Test to continue'
+                : `● Face Check: ${guidanceMessage}`}
             </span>
           )}
         </div>

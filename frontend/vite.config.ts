@@ -84,7 +84,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'three', '@react-three/fiber', '@react-three/drei'],
   },
   optimizeDeps: {
-    include: ['three', '@react-three/fiber', '@react-three/drei'],
+    include: ['three', '@react-three/fiber', '@react-three/drei', '@mediapipe/tasks-vision'],
   },
   server: {
     port: 3000,
@@ -96,6 +96,7 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+          'vendor-vision': ['@mediapipe/tasks-vision'],
           'vendor-spline': ['@splinetool/react-spline', '@splinetool/runtime'],
           'vendor-recharts': ['recharts'],
           'vendor-motion': ['framer-motion', 'gsap'],

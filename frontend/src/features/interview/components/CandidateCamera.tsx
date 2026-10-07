@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 export interface CandidateCameraProps {
   stream: MediaStream | null;
+  videoRef?: React.RefObject<HTMLVideoElement | null>;
   isCameraOff?: boolean;
   isMicMuted?: boolean;
   candidateName?: string;
@@ -12,18 +13,21 @@ export interface CandidateCameraProps {
 
 export const CandidateCamera: React.FC<CandidateCameraProps> = ({
   stream,
+  videoRef: externalVideoRef,
   isCameraOff = false,
   isMicMuted = false,
   candidateName = 'You',
   className,
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const internalVideoRef = useRef<HTMLVideoElement>(null);
+  const activeVideoRef = externalVideoRef || internalVideoRef;
 
   useEffect(() => {
-    const videoElement = videoRef.current;
+    const videoElement = activeVideoRef.current;
     if (videoElement) {
       if (stream && !isCameraOff) {
         videoElement.srcObject = stream;
+        videoElement.play().catch(() => {});
       } else {
         videoElement.srcObject = null;
       }
@@ -33,7 +37,7 @@ export const CandidateCamera: React.FC<CandidateCameraProps> = ({
         videoElement.srcObject = null;
       }
     };
-  }, [stream, isCameraOff]);
+  }, [stream, isCameraOff, activeVideoRef]);
 
   return (
     <div
@@ -44,7 +48,7 @@ export const CandidateCamera: React.FC<CandidateCameraProps> = ({
     >
       {!isCameraOff && stream ? (
         <video
-          ref={videoRef}
+          ref={activeVideoRef}
           autoPlay
           playsInline
           muted

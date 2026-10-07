@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { interviewsApi } from '@/services/api/interviews';
 import type { InterviewState } from '@/config/interviewConfig';
 import type { TerminationReason } from '@/types/interview';
+import type { FaceValidationState } from './useFaceDetection';
 
 export interface UseProctoringOptions {
   sessionId: string | null;
   currentState: InterviewState;
   candidateSpeaking?: boolean;
   stream?: MediaStream | null;
+  faceState?: FaceValidationState;
   onTerminated?: (reason: TerminationReason) => void;
   /**
    * Configurable inactivity check interval in milliseconds.
@@ -22,6 +24,7 @@ export function useProctoring({
   currentState,
   candidateSpeaking = false,
   stream = null,
+  faceState,
   onTerminated,
   inactivityIntervalMs = 180000, // 3 minutes production default
 }: UseProctoringOptions) {
@@ -133,8 +136,17 @@ export function useProctoring({
       const isCamViolated = Boolean(videoTrack && videoTrack.enabled === false);
       // Microphone violation condition: audioTrack exists AND audioTrack.enabled === false
       const isMicViolated = Boolean(audioTrack && audioTrack.enabled === false);
+      // Face proctoring violation condition: camera active but invalid face state
+      const isFaceViolated = Boolean(
+        videoTrack &&
+          videoTrack.enabled &&
+          faceState &&
+          faceState !== 'READY' &&
+          faceState !== 'VALIDATING' &&
+          faceState !== 'INITIALIZING'
+      );
 
-      const isViolated = isCamViolated || isMicViolated;
+      const isViolated = isCamViolated || isMicViolated || isFaceViolated;
 
       if (isViolated) {
         let msg = '';
@@ -142,12 +154,20 @@ export function useProctoring({
           msg = 'Enable your camera and microphone to resume the interview.';
         } else if (isCamViolated) {
           msg = 'Enable your camera to resume the interview.';
-        } else {
+        } else if (isMicViolated) {
           msg = 'Enable your microphone to resume the interview.';
+        } else if (faceState === 'MULTIPLE_FACES') {
+          msg = 'Only one person should be visible on camera to resume the interview.';
+        } else if (faceState === 'FACE_TOO_SMALL') {
+          msg = 'Move closer so your face is clearly visible to resume the interview.';
+        } else if (faceState === 'FACE_OUT_OF_BOUNDS') {
+          msg = 'Center your face in the camera to resume the interview.';
+        } else {
+          msg = 'Ensure your face is clearly visible in the camera to resume the interview.';
         }
         setMediaPauseMessage(msg);
 
-        // Count violations on edge transition: enabled -> disabled (count ONCE per violation event)
+        // Count violations on edge transition: enabled -> disabled / face violated
         if (!wasMediaViolatedRef.current) {
           wasMediaViolatedRef.current = true;
           const nextCount = mediaWarningCountRef.current + 1;
@@ -164,7 +184,7 @@ export function useProctoring({
           }
         }
       } else {
-        // Media restored
+        // Media & face presence restored
         if (wasMediaViolatedRef.current) {
           wasMediaViolatedRef.current = false;
           setIsMediaPaused(false);
@@ -177,7 +197,7 @@ export function useProctoring({
     const interval = setInterval(checkMediaTracks, 250);
 
     return () => clearInterval(interval);
-  }, [stream, isActiveSession, isTerminated, handleTerminate]);
+  }, [stream, faceState, isActiveSession, isTerminated, handleTerminate]);
 
   // 4. Candidate Inactivity Monitor (3-Stage Sequence; Suspended during MEDIA_PAUSED)
   useEffect(() => {

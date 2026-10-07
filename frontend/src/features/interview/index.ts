@@ -2,6 +2,7 @@ export * from './hooks/useUserMedia';
 export * from './hooks/useAudioMeter';
 export * from './hooks/useVoiceSynthesizer';
 export * from './hooks/useProctoring';
+export * from './hooks/useFaceDetection';
 
 export * from './components/PreFlightDeviceCheck';
 export * from './components/HumanFace';
