@@ -11,5 +11,10 @@
     "build:backend": "npm run build --workspace=backend",
     "typecheck": "npm run typecheck --workspace=frontend",
     "lint": "npm run lint --workspace=frontend"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.0.9",
+    "@tailwindcss/oxide-linux-x64-musl": "^4.0.9",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }
