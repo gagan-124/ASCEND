@@ -14,10 +14,11 @@ let hasPlayedOpeningIntro = false;
 export function PublicLayout() {
   const location = useLocation();
   const isDedicatedOpeningRoute = location.pathname === '/opening';
-  
-  // Show intro only on initial app session load/refresh, never on client-side SPA navigation or Back
+  const isLegalRoute = location.pathname === '/privacy' || location.pathname === '/terms';
+
+  // Show intro only on initial app session load/refresh, never on client-side SPA navigation, Back, or legal pages
   const [showIntro, setShowIntro] = useState(() => {
-    if (isDedicatedOpeningRoute) return false;
+    if (isDedicatedOpeningRoute || isLegalRoute) return false;
     return !hasPlayedOpeningIntro;
   });
 
@@ -30,7 +31,7 @@ export function PublicLayout() {
     <div className="relative min-h-screen bg-background text-foreground flex flex-col">
       {/* Integrated Public Navbar in normal document flow */}
       <Navbar
-        showLogo={!showIntro || isDedicatedOpeningRoute}
+        showLogo={!showIntro || isDedicatedOpeningRoute || isLegalRoute}
         logoLayoutId={isDedicatedOpeningRoute ? undefined : 'ascend-brand-logo'}
       />
 
@@ -41,7 +42,7 @@ export function PublicLayout() {
 
       {/* Intro Experience Overlay (Continuous Layout Transition, Zero Route Unmount) */}
       <AnimatePresence>
-        {showIntro && !isDedicatedOpeningRoute && (
+        {showIntro && !isDedicatedOpeningRoute && !isLegalRoute && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}

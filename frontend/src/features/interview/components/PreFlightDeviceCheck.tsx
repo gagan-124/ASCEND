@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Camera,
@@ -33,6 +34,7 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasConsentedToProctoring, setHasConsentedToProctoring] = useState(false);
 
   const localMedia = useUserMedia();
   const {
@@ -95,7 +97,7 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
   };
 
   const handleContinue = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || !hasConsentedToProctoring) return;
     setIsSubmitting(true);
     cleanupAudio();
     if (!media) {
@@ -131,7 +133,7 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
   });
 
   const isMicReady = micGranted && !isMicHardwareMuted && Boolean(stream && stream.getAudioTracks().length > 0 && stream.getAudioTracks()[0].readyState === 'live');
-  const isAllReady = isCameraReady && isMicReady && testPassed === true && isFaceReady;
+  const isAllReady = isCameraReady && isMicReady && testPassed === true && isFaceReady && hasConsentedToProctoring;
 
   const cameras = devices.filter((d) => d.kind === 'videoinput');
   const mics = devices.filter((d) => d.kind === 'audioinput');
@@ -395,12 +397,12 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
           )}
         </div>
 
-        {/* SECTION 3: PROCTORED INTERVIEW RULES */}
+        {/* SECTION 3: PROCTORED INTERVIEW RULES & CONSENT */}
         <div className="flex flex-col gap-3 p-4 rounded-xl bg-background/50 border border-border/50">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-foreground">
-              3. PROCTORED INTERVIEW RULES
+              3. PROCTORED INTERVIEW RULES & CONSENT
             </span>
           </div>
 
@@ -426,21 +428,43 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
             <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface/60 border border-border/40 text-xs">
               <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
               <span className="text-foreground/80 text-[11px] leading-snug">
-                4. Do not switch tabs or minimize the interview.
+                4. Tab switching and window blurring are logged as proctoring events.
               </span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface/60 border border-border/40 text-xs">
               <Volume2 className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
               <span className="text-foreground/80 text-[11px] leading-snug">
-                5. Extended inactivity may terminate the interview.
+                5. Local WASM face presence checks run continuously (no face biometric storage).
               </span>
             </div>
             <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface/60 border border-border/40 text-xs">
               <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
               <span className="text-foreground/80 text-[11px] leading-snug">
-                6. Repeated camera/microphone disabling may terminate the interview.
+                6. Repeated camera/mic disabling or face absence may terminate session.
               </span>
             </div>
+          </div>
+
+          <div className="pt-2 border-t border-border/40 mt-1">
+            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-foreground/90 leading-relaxed font-sans">
+              <input
+                type="checkbox"
+                checked={hasConsentedToProctoring}
+                onChange={(e) => setHasConsentedToProctoring(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-border/60 text-foreground focus:ring-foreground shrink-0 accent-foreground cursor-pointer"
+              />
+              <span>
+                I acknowledge and consent to camera/microphone monitoring, local face-presence verification, tab event logging, and AI session evaluation for this interview in accordance with the{' '}
+                <Link to="/privacy" target="_blank" className="font-semibold text-foreground underline hover:opacity-80">
+                  Privacy Policy
+                </Link>{' '}
+                and{' '}
+                <Link to="/terms" target="_blank" className="font-semibold text-foreground underline hover:opacity-80">
+                  Terms &amp; Conditions
+                </Link>
+                .
+              </span>
+            </label>
           </div>
         </div>
       </div>
@@ -460,7 +484,9 @@ export const PreFlightDeviceCheck: React.FC<PreFlightDeviceCheckProps> = ({
                 ? '● Microphone check pending'
                 : testPassed !== true
                 ? '● Complete & pass 10-sec Mic Test to continue'
-                : `● Face Check: ${guidanceMessage}`}
+                : !isFaceReady
+                ? `● Face Check: ${guidanceMessage}`
+                : '● Proctoring consent required'}
             </span>
           )}
         </div>

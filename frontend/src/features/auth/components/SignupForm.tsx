@@ -19,6 +19,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -36,6 +37,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
     }
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match. Please re-enter your password.');
+      return;
+    }
+    if (!agreedToTerms) {
+      setErrorMessage('Please accept the Terms & Conditions and Privacy Policy before continuing.');
       return;
     }
 
@@ -60,6 +65,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
 
   const handleOAuth = async (provider: 'google' | 'github' | 'azure') => {
     setErrorMessage(null);
+    if (!agreedToTerms) {
+      setErrorMessage('Please accept the Terms & Conditions and Privacy Policy before continuing.');
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await authService.signInWithOAuth(provider);
@@ -78,40 +87,40 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
   return (
     <div
       className={cn(
-        'w-full max-w-md mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-border/40',
+        'w-full max-w-[480px] mx-auto p-6 sm:p-7 rounded-2xl bg-surface border border-border/40',
         'shadow-[0_4px_24px_rgba(16,44,87,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)]',
         'transition-colors duration-150',
         className
       )}
     >
       {/* Form Header */}
-      <div className="flex flex-col items-center text-center select-none mb-6 sm:mb-8">
-        <Link to="/" aria-label="Return to Home" className="mb-4 inline-block">
+      <div className="flex flex-col items-center text-center select-none mb-5">
+        <Link to="/" aria-label="Return to Home" className="mb-3 inline-block">
           <AscendLogo size="md" />
         </Link>
         <h1 className="text-2xl sm:text-3xl font-stardom font-normal text-foreground uppercase tracking-tight">
           Create account
         </h1>
         <p className="text-xs sm:text-sm font-sans text-foreground/60 mt-1">
-          Start your personalized AI career coaching journey
+          Start practicing with AI-powered mock interviews
         </p>
       </div>
 
       {/* Error Feedback Banner */}
       {errorMessage && (
-        <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-2.5 text-xs sm:text-sm font-sans">
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-2.5 text-xs sm:text-sm font-sans">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* OAuth Icon Buttons */}
-      <div className="mb-6">
+      <div className="mb-4">
         <OAuthButtons onSelectProvider={handleOAuth} isLoading={isLoading} />
       </div>
 
       {/* Divider */}
-      <div className="relative my-6 flex items-center justify-center">
+      <div className="relative my-4 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border/30" />
         </div>
@@ -121,7 +130,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
       </div>
 
       {/* Email / Password Credentials Form */}
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 font-sans">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 font-sans">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="signup-email" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
             Email
@@ -136,7 +145,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
             placeholder="candidate@company.com"
             disabled={isLoading}
             className={cn(
-              'h-11 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
+              'h-10 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
               'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
@@ -157,7 +166,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
             placeholder="Minimum 8 characters"
             disabled={isLoading}
             className={cn(
-              'h-11 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
+              'h-10 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
               'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
@@ -178,22 +187,45 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
             placeholder="Repeat password"
             disabled={isLoading}
             className={cn(
-              'h-11 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
+              'h-10 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
               'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
           />
         </div>
 
+        {/* Mandatory Legal & Privacy Consent Checkbox (Positioned directly above Submit Button) */}
+        <div className="flex items-start gap-2.5 my-1 text-xs text-foreground/80">
+          <input
+            id="signup-agree-terms"
+            type="checkbox"
+            checked={agreedToTerms}
+            onChange={(e) => setAgreedToTerms(e.target.checked)}
+            disabled={isLoading}
+            className="mt-0.5 w-4 h-4 rounded border-border/60 text-foreground focus:ring-foreground cursor-pointer shrink-0 accent-foreground"
+          />
+          <label htmlFor="signup-agree-terms" className="text-[11px] sm:text-xs leading-normal text-foreground/90 cursor-pointer font-sans select-none">
+            I agree to the{' '}
+            <Link to="/terms" target="_blank" className="font-semibold text-foreground underline hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground">
+              Terms &amp; Conditions
+            </Link>{' '}
+            and acknowledge the{' '}
+            <Link to="/privacy" target="_blank" className="font-semibold text-foreground underline hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground">
+              Privacy Policy
+            </Link>.
+          </label>
+        </div>
+
         {/* Tactile Primary Button */}
         <LoadingButton
           type="submit"
           isLoading={isLoading}
+          disabled={!agreedToTerms || isLoading}
           loadingText="CREATING ACCOUNT..."
           className={cn(
-            'mt-2 h-11 w-full rounded-xl font-mono text-xs font-semibold uppercase tracking-widest text-background bg-foreground',
+            'mt-1 h-11 w-full rounded-xl font-mono text-xs font-semibold uppercase tracking-widest text-background bg-foreground',
             'shadow-[2px_2px_8px_rgba(0,0,0,0.12)] active:scale-[0.99]',
-            'hover:opacity-95'
+            'hover:opacity-95 disabled:opacity-40 disabled:cursor-not-allowed'
           )}
         >
           CREATE ACCOUNT
@@ -201,7 +233,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
       </form>
 
       {/* Switch to Login Link */}
-      <div className="mt-6 text-center text-xs font-sans text-foreground/60 select-none">
+      <div className="mt-5 text-center text-xs font-sans text-foreground/60 select-none">
         Already have an account?{' '}
         <Link
           to={`/auth/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}

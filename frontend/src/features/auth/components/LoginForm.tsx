@@ -193,6 +193,23 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
           Sign up
         </Link>
       </div>
+
+      {/* Subtle Legal Navigation Row */}
+      <div className="mt-5 pt-3.5 border-t border-slate-800/60 flex items-center justify-center gap-2 text-[11px] font-mono text-slate-400 select-none">
+        <Link
+          to="/privacy"
+          className="hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+        >
+          Privacy Policy
+        </Link>
+        <span>·</span>
+        <Link
+          to="/terms"
+          className="hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+        >
+          Terms &amp; Conditions
+        </Link>
+      </div>
     </div>
   );
 };

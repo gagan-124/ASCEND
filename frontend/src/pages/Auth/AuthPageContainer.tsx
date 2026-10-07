@@ -164,7 +164,7 @@ export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({ children, 
       <main className="w-full max-w-[1360px] mx-auto px-4 py-3 sm:py-6 flex-1 flex flex-col items-center justify-center z-30 relative pointer-events-auto">
         {/* LOGIN CARD WITH DYNAMIC ILLUMINATION */}
         <div
-          className="w-full max-w-[420px] relative transition-all duration-150 ease-out rounded-2xl"
+          className="w-full max-w-[480px] relative transition-all duration-150 ease-out rounded-2xl"
           style={{
             opacity: 0.35 + 0.65 * lightIntensity,
             filter: `brightness(${0.35 + 0.65 * lightIntensity}) contrast(${0.7 + 0.3 * lightIntensity})`,

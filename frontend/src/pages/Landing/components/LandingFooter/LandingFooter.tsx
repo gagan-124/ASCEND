@@ -105,15 +105,21 @@ export const LandingFooter: React.FC<LandingFooterProps> = ({ className }) => {
         </div>
 
         {/* Bottom Section: Metadata Row */}
-        <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-mono text-foreground/40 select-none">
+        <div className="pt-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs font-mono text-foreground/50">
           <p>© 2026 ASCEND</p>
           <div className="flex items-center gap-6">
-            <span className="text-foreground/40 font-mono">
-              Privacy
-            </span>
-            <span className="text-foreground/40 font-mono">
-              Terms
-            </span>
+            <Link
+              to="/privacy"
+              className="text-foreground/80 hover:text-foreground underline decoration-border/60 hover:decoration-foreground transition-colors font-mono font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/terms"
+              className="text-foreground/80 hover:text-foreground underline decoration-border/60 hover:decoration-foreground transition-colors font-mono font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
+            >
+              Terms & Conditions
+            </Link>
           </div>
         </div>
       </div>

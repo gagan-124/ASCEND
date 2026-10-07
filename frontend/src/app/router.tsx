@@ -22,6 +22,8 @@ const InterviewRoomPage = lazy(() => import('@/pages/InterviewRoom').then((m) =>
 const ResultsPage = lazy(() => import('@/pages/Results').then((m) => ({ default: m.ResultsPage })));
 const DashboardPage = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })));
 const ProfileSettingsPage = lazy(() => import('@/pages/ProfileSettings').then((m) => ({ default: m.ProfileSettingsPage })));
+const PrivacyPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.TermsPage })));
 
 function LazyRoute({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
@@ -66,6 +68,8 @@ export const router = createBrowserRouter([
       { index: true, element: <LazyRoute><LandingPage /></LazyRoute> },
       { path: 'opening', element: <LazyRoute><OpeningPage /></LazyRoute> },
       { path: 'ats-evaluator', element: <LazyRoute><ATSEvaluatorPage /></LazyRoute> },
+      { path: 'privacy', element: <LazyRoute><PrivacyPage /></LazyRoute> },
+      { path: 'terms', element: <LazyRoute><TermsPage /></LazyRoute> },
     ],
   },
   {
