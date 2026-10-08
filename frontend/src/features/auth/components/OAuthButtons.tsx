@@ -38,22 +38,6 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-// Official Microsoft 4-Square Vector Icon
-function MicrosoftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={cn('w-5 h-5', className)}
-      viewBox="0 0 23 23"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path fill="#f35325" d="M1 1h10v10H1z" />
-      <path fill="#81bc06" d="M12 1h10v10H12z" />
-      <path fill="#05a6f0" d="M1 12h10v10H1z" />
-      <path fill="#ffba08" d="M12 12h10v10H12z" />
-    </svg>
-  );
-}
-
 export const OAuthButtons: React.FC<OAuthButtonsProps> = ({
   onSelectProvider,
   isLoading = false,
@@ -72,11 +56,6 @@ export const OAuthButtons: React.FC<OAuthButtonsProps> = ({
       icon: ({ className }: { className?: string }) => (
         <Github className={cn('w-5 h-5 text-slate-100', className)} />
       ),
-    },
-    {
-      id: 'azure' as const,
-      label: 'Sign in with Microsoft',
-      icon: MicrosoftIcon,
     },
   ];
 
