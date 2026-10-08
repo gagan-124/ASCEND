@@ -141,7 +141,7 @@ export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({ children, 
       ref={containerRef}
       onMouseMove={handleMouseMove}
       className={cn(
-        'relative min-h-screen w-full bg-[#050811] text-slate-100 flex flex-col items-center justify-start overflow-x-hidden select-none',
+        'relative min-h-screen w-full bg-[#050811] text-foreground flex flex-col items-center justify-start overflow-x-hidden select-none',
         className
       )}
     >
