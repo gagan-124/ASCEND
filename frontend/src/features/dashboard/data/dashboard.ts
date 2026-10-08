@@ -11,7 +11,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
     return emptyDashboardData;
   }
 
-  if (supabase && userId && userId !== 'dev_user_1') {
+  if (supabase && userId) {
     try {
       const { data: interviews } = await supabase
         .from('interviews')

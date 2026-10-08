@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Github } from 'lucide-react';
 
 interface OAuthButtonsProps {
-  onSelectProvider: (provider: 'google' | 'github' | 'azure') => void;
+  onSelectProvider: (provider: 'google' | 'github') => void;
   isLoading?: boolean;
   disabled?: boolean;
   className?: string;

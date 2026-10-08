@@ -5,7 +5,7 @@ import { LoadingButton } from '@/components/common';
 import { OAuthButtons } from './OAuthButtons';
 import { authService } from '../services/authService';
 import { cn } from '@/lib/utils';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export interface SignupFormProps {
   className?: string;
@@ -22,10 +22,12 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
     if (!email || !email.includes('@')) {
       setErrorMessage('Please enter a valid email address.');
@@ -51,7 +53,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
         if (res.user) {
           navigate(redirectTarget, { replace: true });
         } else {
-          setErrorMessage(res.message || 'Account created successfully.');
+          setSuccessMessage(res.message || 'Account created! Please check your email to confirm your account.');
         }
       } else {
         setErrorMessage(res.message || 'Sign up failed. Please try again.');
@@ -63,8 +65,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
     }
   };
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'azure') => {
+  const handleOAuth = async (provider: 'google' | 'github') => {
     setErrorMessage(null);
+    setSuccessMessage(null);
     if (!agreedToTerms) {
       setErrorMessage('Please accept the Terms & Conditions and Privacy Policy before continuing.');
       return;
@@ -72,14 +75,12 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
     setIsLoading(true);
     try {
       const res = await authService.signInWithOAuth(provider);
-      if (res.success && !res.message) {
-        navigate(redirectTarget, { replace: true });
-      } else if (!res.success) {
-        setErrorMessage(res.message || `Unable to sign in with ${provider}.`);
+      if (!res.success) {
+        setErrorMessage(res.message || `Unable to connect to ${provider}.`);
+        setIsLoading(false);
       }
     } catch {
       setErrorMessage('Failed to connect to authentication provider.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -111,6 +112,14 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-2.5 text-xs sm:text-sm font-sans">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Success Feedback Banner */}
+      {successMessage && (
+        <div className="mb-4 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800/50 text-emerald-300 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
+          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
+          <span>{successMessage}</span>
         </div>
       )}
 

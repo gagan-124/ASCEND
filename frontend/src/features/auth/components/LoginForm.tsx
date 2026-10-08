@@ -49,19 +49,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
     }
   };
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'azure') => {
+  const handleOAuth = async (provider: 'google' | 'github') => {
     setErrorMessage(null);
     setIsLoading(true);
     try {
       const res = await authService.signInWithOAuth(provider);
-      if (res.success && !res.message) {
-        navigate(redirectTarget, { replace: true });
-      } else if (!res.success) {
-        setErrorMessage(res.message || `Unable to sign in with ${provider}.`);
+      if (!res.success) {
+        setErrorMessage(res.message || `Unable to connect to ${provider}.`);
+        setIsLoading(false);
       }
     } catch {
       setErrorMessage('Failed to connect to authentication provider.');
-    } finally {
       setIsLoading(false);
     }
   };
