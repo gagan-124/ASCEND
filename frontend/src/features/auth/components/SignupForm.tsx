@@ -4,6 +4,7 @@ import { AscendLogo } from '@/components/branding';
 import { LoadingButton } from '@/components/common';
 import { OAuthButtons } from './OAuthButtons';
 import { authService } from '../services/authService';
+import { useProfileStore } from '@/stores/profileStore';
 import { cn } from '@/lib/utils';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -16,6 +17,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
   const [searchParams] = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || '/interview/setup';
 
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -26,9 +28,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // Prevent double submissions
+
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    if (!fullName.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
+    }
     if (!email || !email.includes('@')) {
       setErrorMessage('Please enter a valid email address.');
       return;
@@ -48,12 +56,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
 
     setIsLoading(true);
     try {
-      const res = await authService.signUpWithEmail(email, password);
+      const res = await authService.signUpWithEmail(email, password, fullName);
       if (res.success) {
         if (res.user) {
-          navigate(redirectTarget, { replace: true });
+          const isOnboarded = useProfileStore.getState().isOnboarded;
+          navigate(isOnboarded ? redirectTarget : '/onboarding', { replace: true });
         } else {
-          setSuccessMessage(res.message || 'Account created! Please check your email to confirm your account.');
+          setSuccessMessage(
+            res.message || 'Account created! Please check your email inbox to confirm your account before signing in.'
+          );
         }
       } else {
         setErrorMessage(res.message || 'Sign up failed. Please try again.');
@@ -117,7 +128,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
 
       {/* Success Feedback Banner */}
       {successMessage && (
-        <div className="mb-4 p-3 rounded-lg bg-emerald-950/50 border border-emerald-800/50 text-emerald-300 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
+        <div className="mb-4 p-3.5 rounded-lg bg-emerald-950/50 border border-emerald-800/50 text-emerald-300 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
           <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-400" />
           <span>{successMessage}</span>
         </div>
@@ -140,6 +151,29 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
 
       {/* Email / Password Credentials Form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 font-sans">
+        {/* Full Name */}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="signup-name" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
+            Full Name
+          </label>
+          <input
+            id="signup-name"
+            type="text"
+            required
+            autoComplete="name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="e.g. Maya Chen"
+            disabled={isLoading}
+            className={cn(
+              'h-10 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
+              'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
+              'transition-all duration-150'
+            )}
+          />
+        </div>
+
+        {/* Email */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="signup-email" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
             Email
@@ -161,6 +195,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
           />
         </div>
 
+        {/* Password */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="signup-password" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
             Password
@@ -172,7 +207,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimum 8 characters"
+            placeholder="Minimum 6 characters"
             disabled={isLoading}
             className={cn(
               'h-10 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
@@ -182,6 +217,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
           />
         </div>
 
+        {/* Confirm Password */}
         <div className="flex flex-col gap-1.5">
           <label htmlFor="signup-confirm-password" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
             Confirm Password
@@ -203,7 +239,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
           />
         </div>
 
-        {/* Mandatory Legal & Privacy Consent Checkbox (Positioned directly above Submit Button) */}
+        {/* Mandatory Legal & Privacy Consent Checkbox */}
         <div className="flex items-start gap-2.5 my-1 text-xs text-foreground/80">
           <input
             id="signup-agree-terms"

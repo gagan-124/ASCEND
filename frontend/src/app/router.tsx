@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/layouts/DashboardLayout';
 import { RouteLoader, AppSessionLoader } from '@/components/common';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
 import { useInterviewStore } from '@/stores/interviewStore';
 
 // Lazy-loaded Page Routes for initial bundle payload reduction
@@ -16,6 +17,7 @@ const ATSEvaluatorPage = lazy(() => import('@/pages/ATSEvaluator').then((m) => (
 const LoginPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.SignupPage })));
 const ForgotPasswordPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.ForgotPasswordPage })));
+const OnboardingPage = lazy(() => import('@/pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
 const InterviewSetupPage = lazy(() => import('@/pages/InterviewSetup').then((m) => ({ default: m.InterviewSetupPage })));
 const InterviewRolesPage = lazy(() => import('@/pages/InterviewRoles').then((m) => ({ default: m.InterviewRolesPage })));
 const InterviewRoomPage = lazy(() => import('@/pages/InterviewRoom').then((m) => ({ default: m.InterviewRoomPage })));
@@ -29,14 +31,36 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
 }
 
-// Route Protection Shell Components
+// Route Protection Shell Component
 function ProtectedRoute() {
   const { isAuthenticated, isInitialized } = useAuthStore();
-  if (!isInitialized) {
+  const { isOnboarded, isLoaded } = useProfileStore();
+
+  if (!isInitialized || (isAuthenticated && !isLoaded)) {
     return <AppSessionLoader statusText="Verifying security session..." />;
   }
   if (!isAuthenticated) {
     return <Navigate to="/auth/login" replace />;
+  }
+  if (!isOnboarded) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <Outlet />;
+}
+
+// Onboarding Protection Shell Component
+function OnboardingRoute() {
+  const { isAuthenticated, isInitialized } = useAuthStore();
+  const { isOnboarded, isLoaded } = useProfileStore();
+
+  if (!isInitialized || (isAuthenticated && !isLoaded)) {
+    return <AppSessionLoader statusText="Loading profile state..." />;
+  }
+  if (!isAuthenticated) {
+    return <Navigate to="/auth/login" replace />;
+  }
+  if (isOnboarded) {
+    return <Navigate to="/interview/setup" replace />;
   }
   return <Outlet />;
 }
@@ -80,6 +104,12 @@ export const router = createBrowserRouter([
       { path: 'signup', element: <LazyRoute><SignupPage /></LazyRoute> },
       { path: 'forgot-password', element: <LazyRoute><ForgotPasswordPage /></LazyRoute> },
       { path: 'recovery', element: <LazyRoute><ForgotPasswordPage /></LazyRoute> },
+    ],
+  },
+  {
+    element: <OnboardingRoute />,
+    children: [
+      { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
     ],
   },
   {
@@ -137,4 +167,3 @@ export const router = createBrowserRouter([
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
-

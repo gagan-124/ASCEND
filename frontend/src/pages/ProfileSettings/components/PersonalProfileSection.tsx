@@ -30,6 +30,13 @@ export const PersonalProfileSection: React.FC<PersonalProfileSectionProps> = ({
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  React.useEffect(() => {
+    setFullName(profile.fullName);
+    setHeadline(profile.headline);
+    setLocation(profile.location);
+    setCurrentAvatarUrl(profile.avatarUrl);
+  }, [profile.fullName, profile.headline, profile.location, profile.avatarUrl]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

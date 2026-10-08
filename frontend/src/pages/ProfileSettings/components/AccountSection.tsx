@@ -21,25 +21,27 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
   const [emailNotifications, setEmailNotifications] = useState(profile.emailNotifications);
   const [weeklyDigest, setWeeklyDigest] = useState(profile.weeklyDigest);
 
+  React.useEffect(() => {
+    setEmailNotifications(profile.emailNotifications);
+    setWeeklyDigest(profile.weeklyDigest);
+  }, [profile.emailNotifications, profile.weeklyDigest]);
+
   // Modals state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
 
-    if (!currentPassword) {
-      setPasswordError('Please enter your current password.');
-      return;
-    }
     if (newPassword.length < 6) {
       setPasswordError('New password must be at least 6 characters.');
       return;
@@ -49,12 +51,25 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
       return;
     }
 
-    // Success feedback
-    setShowPasswordModal(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    onSaveSuccess();
+    setIsUpdatingPassword(true);
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setPasswordError(error.message || 'Failed to update password.');
+        return;
+      }
+
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      onSaveSuccess();
+    } catch {
+      setPasswordError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -298,9 +313,10 @@ export const AccountSection: React.FC<AccountSectionProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-foreground text-background font-bold tracking-wider uppercase cursor-pointer shadow-md"
+                  disabled={isUpdatingPassword}
+                  className="px-5 py-2 rounded-xl bg-foreground text-background font-bold tracking-wider uppercase cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update Password
+                  {isUpdatingPassword ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>

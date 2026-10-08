@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useProfileStore } from '@/stores/profileStore';
 import type { UserProfile } from '@/types/auth';
 import type { Session } from '@supabase/supabase-js';
 
@@ -28,7 +29,7 @@ export function parseAuthError(error: unknown): string {
   if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) {
     return 'Please confirm your email address before signing in. Check your inbox for the confirmation email.';
   }
-  if (lower.includes('rate limit') || lower.includes('too many requests')) {
+  if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('over_email_send_rate_limit')) {
     return 'Too many authentication attempts. Please wait a moment and try again.';
   }
   if (lower.includes('failed to fetch') || lower.includes('networkerror')) {
@@ -77,12 +78,19 @@ export const authService = {
       if (session && session.user) {
         const userProfile = await buildUserProfileFromSession(session);
         useAuthStore.getState().setAuth(userProfile, session.access_token);
+        await useProfileStore.getState().fetchProfile(
+          session.user.id,
+          session.user.email || '',
+          session.user.user_metadata
+        );
       } else {
         useAuthStore.getState().clearAuth();
+        useProfileStore.getState().resetProfile();
       }
     } catch (err) {
       console.error('[AUTH] Session restoration failed:', err);
       useAuthStore.getState().clearAuth();
+      useProfileStore.getState().resetProfile();
     } finally {
       useAuthStore.getState().setInitialized(true);
     }
@@ -92,8 +100,14 @@ export const authService = {
       if (session && session.user) {
         const userProfile = await buildUserProfileFromSession(session);
         useAuthStore.getState().setAuth(userProfile, session.access_token);
+        await useProfileStore.getState().fetchProfile(
+          session.user.id,
+          session.user.email || '',
+          session.user.user_metadata
+        );
       } else if (event === 'SIGNED_OUT' || !session) {
         useAuthStore.getState().clearAuth();
+        useProfileStore.getState().resetProfile();
       }
     });
   },
@@ -105,6 +119,7 @@ export const authService = {
       console.error('[AUTH] Sign out error:', err);
     }
     useAuthStore.getState().clearAuth();
+    useProfileStore.getState().resetProfile();
   },
 
   async signInWithEmail(email: string, password: string): Promise<AuthResponse> {
@@ -121,6 +136,11 @@ export const authService = {
       if (data.session && data.user) {
         const userProfile = await buildUserProfileFromSession(data.session);
         useAuthStore.getState().setAuth(userProfile, data.session.access_token);
+        await useProfileStore.getState().fetchProfile(
+          data.user.id,
+          data.user.email || '',
+          data.user.user_metadata
+        );
         return { success: true, user: userProfile };
       }
 
@@ -132,12 +152,15 @@ export const authService = {
 
   async signUpWithEmail(email: string, password: string, fullName?: string): Promise<AuthResponse> {
     try {
+      const trimmedEmail = email.trim();
+      const trimmedName = fullName?.trim() || trimmedEmail.split('@')[0];
+
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
         options: {
           data: {
-            full_name: fullName || email.split('@')[0],
+            full_name: trimmedName,
           },
           emailRedirectTo: `${window.location.origin}/interview/setup`,
         },
@@ -151,6 +174,11 @@ export const authService = {
       if (data.session && data.user) {
         const userProfile = await buildUserProfileFromSession(data.session);
         useAuthStore.getState().setAuth(userProfile, data.session.access_token);
+        await useProfileStore.getState().fetchProfile(
+          data.user.id,
+          data.user.email || '',
+          data.user.user_metadata
+        );
         return { success: true, user: userProfile };
       }
 

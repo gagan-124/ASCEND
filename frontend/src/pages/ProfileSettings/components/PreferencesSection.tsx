@@ -25,6 +25,13 @@ export const PreferencesSection: React.FC<PreferencesSectionProps> = ({
   const [allowFollowUps, setAllowFollowUps] = useState(profile.allowFollowUps);
   const enableVoice = profile.enableVoice;
 
+  React.useEffect(() => {
+    setDuration(profile.interviewDuration);
+    setQuestionCount(profile.questionsPerSession);
+    setAllowHints(profile.allowHints);
+    setAllowFollowUps(profile.allowFollowUps);
+  }, [profile.interviewDuration, profile.questionsPerSession, profile.allowHints, profile.allowFollowUps]);
+
   const handleSelectDuration = (d: typeof profile.interviewDuration) => {
     setDuration(d);
     updateProfile({ interviewDuration: d });

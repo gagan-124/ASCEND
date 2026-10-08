@@ -46,6 +46,12 @@ export const InterviewProfileSection: React.FC<InterviewProfileSectionProps> = (
   const [difficulty, setDifficulty] = useState(profile.difficulty);
   const [newSkillInput, setNewSkillInput] = useState('');
 
+  React.useEffect(() => {
+    setTargetRole(profile.targetRole);
+    setExperienceLevel(profile.experienceLevel);
+    setDifficulty(profile.difficulty);
+  }, [profile.targetRole, profile.experienceLevel, profile.difficulty]);
+
   const handleSelectRole = (role: string) => {
     setTargetRole(role);
     updateProfile({ targetRole: role });

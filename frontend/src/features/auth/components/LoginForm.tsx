@@ -4,6 +4,7 @@ import { AscendLogo } from '@/components/branding';
 import { LoadingButton } from '@/components/common';
 import { OAuthButtons } from './OAuthButtons';
 import { authService } from '../services/authService';
+import { useProfileStore } from '@/stores/profileStore';
 import { cn } from '@/lib/utils';
 import { AlertCircle } from 'lucide-react';
 
@@ -23,6 +24,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
+
     setErrorMessage(null);
 
     if (!email || !email.includes('@')) {
@@ -38,7 +41,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
     try {
       const res = await authService.signInWithEmail(email, password);
       if (res.success) {
-        navigate(redirectTarget, { replace: true });
+        const isOnboarded = useProfileStore.getState().isOnboarded;
+        navigate(isOnboarded ? redirectTarget : '/onboarding', { replace: true });
       } else {
         setErrorMessage(res.message || 'Authentication failed. Please check your credentials.');
       }

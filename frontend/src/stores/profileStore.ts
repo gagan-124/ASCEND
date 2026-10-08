@@ -36,7 +36,12 @@ export interface UserProfileData {
 
 interface ProfileState {
   profile: UserProfileData;
-  updateProfile: (updates: Partial<UserProfileData>) => void;
+  isOnboarded: boolean;
+  isLoaded: boolean;
+  isSaving: boolean;
+  fetchProfile: (userId: string, email: string, userMetadata?: Record<string, unknown>) => Promise<void>;
+  updateProfile: (updates: Partial<UserProfileData>) => Promise<boolean>;
+  completeOnboarding: (data: Partial<UserProfileData>) => Promise<boolean>;
   addSkill: (skill: string) => void;
   removeSkill: (skill: string) => void;
   setResume: (fileName: string, fileSize: string) => void;
@@ -46,19 +51,19 @@ interface ProfileState {
 
 const STORAGE_KEY = 'ascend_profile_settings';
 
-const initialProfile: UserProfileData = {
-  fullName: 'Alex Morgan',
-  email: 'candidate@company.com',
+const defaultEmptyProfile: UserProfileData = {
+  fullName: '',
+  email: '',
   avatarUrl: null,
-  headline: 'Senior Full Stack Engineer',
-  location: 'Chennai, India',
-  targetRole: 'Software Engineer',
-  experienceLevel: 'Senior',
+  headline: '',
+  location: '',
+  targetRole: '',
+  experienceLevel: 'Entry',
   difficulty: 'Medium',
-  skills: ['React', 'TypeScript', 'Node.js', 'Python', 'System Design'],
-  resumeFileName: 'alex_morgan_senior_engineer_resume.pdf',
-  resumeUploadDate: 'Sep 24, 2026',
-  resumeFileSize: '1.2 MB',
+  skills: [],
+  resumeFileName: null,
+  resumeUploadDate: null,
+  resumeFileSize: null,
   interviewDuration: 30,
   questionsPerSession: 10,
   allowHints: true,
@@ -68,90 +73,208 @@ const initialProfile: UserProfileData = {
   weeklyDigest: true,
 };
 
-function getSavedProfile(): UserProfileData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...initialProfile, ...parsed };
-    }
-  } catch (err) {
-    console.error('Failed to load saved profile settings:', err);
-  }
-  return initialProfile;
+function formatLevel(level: string | null | undefined): UserProfileData['experienceLevel'] {
+  if (!level) return 'Entry';
+  const lower = level.toLowerCase();
+  if (lower === 'student') return 'Student';
+  if (lower === 'entry') return 'Entry';
+  if (lower === 'junior') return 'Junior';
+  if (lower === 'mid') return 'Mid';
+  if (lower === 'senior') return 'Senior';
+  return 'Entry';
+}
+
+function formatDifficulty(diff: string | null | undefined): UserProfileData['difficulty'] {
+  if (!diff) return 'Medium';
+  const lower = diff.toLowerCase();
+  if (lower === 'easy') return 'Easy';
+  if (lower === 'medium') return 'Medium';
+  if (lower === 'hard') return 'Hard';
+  return 'Medium';
+}
+
+function formatBytes(bytes: number | null | undefined): string | null {
+  if (!bytes) return null;
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 export const useProfileStore = create<ProfileState>((set, get) => ({
-  profile: getSavedProfile(),
+  profile: defaultEmptyProfile,
+  isOnboarded: false,
+  isLoaded: false,
+  isSaving: false,
 
-  updateProfile: (updates) => {
-    set((state) => {
-      const newProfile = { ...state.profile, ...updates };
+  fetchProfile: async (userId: string, email: string, userMetadata?: Record<string, unknown>) => {
+    try {
+      const metaName = typeof userMetadata?.full_name === 'string' ? userMetadata.full_name : '';
+      const metaAvatar = typeof userMetadata?.avatar_url === 'string' ? userMetadata.avatar_url : null;
 
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[PROFILE] Error fetching profile from Supabase:', error.message);
+      }
+
+      if (data) {
+        const loadedProfile: UserProfileData = {
+          fullName: data.full_name || metaName || email.split('@')[0] || '',
+          email: email || '',
+          avatarUrl: data.avatar_url || metaAvatar || null,
+          headline: data.headline || '',
+          location: data.location || '',
+          targetRole: data.target_role || '',
+          experienceLevel: formatLevel(data.experience_level),
+          difficulty: formatDifficulty(data.difficulty),
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          resumeFileName: data.resume_file_name || null,
+          resumeUploadDate: data.resume_uploaded_at
+            ? new Date(data.resume_uploaded_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : null,
+          resumeFileSize: formatBytes(data.resume_file_size),
+          interviewDuration: (data.interview_duration as 15 | 30 | 45 | 60) || 30,
+          questionsPerSession: (data.questions_per_session as 5 | 10 | 15 | 20) || 10,
+          allowHints: data.allow_hints ?? true,
+          allowFollowUps: data.allow_follow_ups ?? true,
+          enableVoice: data.enable_voice ?? false,
+          emailNotifications: data.email_notifications ?? true,
+          weeklyDigest: data.weekly_digest ?? true,
+        };
+
+        const onboarded = Boolean(data.target_role && data.target_role.trim().length > 0 && data.experience_level);
+
+        set({
+          profile: loadedProfile,
+          isOnboarded: onboarded,
+          isLoaded: true,
+        });
+
+        // Sync setup config with Interview Store
+        if (loadedProfile.targetRole) {
+          useInterviewStore.getState().setSetupConfig({
+            selectedRoleTitle: loadedProfile.targetRole,
+            experienceLevel:
+              loadedProfile.experienceLevel === 'Student' || loadedProfile.experienceLevel === 'Junior'
+                ? 'Entry'
+                : loadedProfile.experienceLevel === 'Senior'
+                ? 'Senior'
+                : 'Mid',
+            difficulty: loadedProfile.difficulty,
+            resumeFileName: loadedProfile.resumeFileName,
+          });
+        }
+      } else {
+        // Fallback if trigger record is still being created
+        const fallbackProfile: UserProfileData = {
+          ...defaultEmptyProfile,
+          fullName: metaName || email.split('@')[0] || '',
+          email: email || '',
+          avatarUrl: metaAvatar || null,
+        };
+
+        set({
+          profile: fallbackProfile,
+          isOnboarded: false,
+          isLoaded: true,
+        });
+      }
+    } catch (err) {
+      console.error('[PROFILE] Unexpected error loading profile:', err);
+      set({ isLoaded: true });
+    }
+  },
+
+  updateProfile: async (updates) => {
+    const current = get().profile;
+    const newProfile = { ...current, ...updates };
+    const authUser = useAuthStore.getState().user;
+
+    set({ profile: newProfile, isSaving: true });
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newProfile));
+    } catch (err) {
+      console.error('Failed to cache profile in local storage:', err);
+    }
+
+    // Sync auth store metadata if fullName or avatar changes
+    if (authUser && (updates.fullName || updates.avatarUrl !== undefined)) {
+      useAuthStore.getState().setAuth(
+        {
+          ...authUser,
+          fullName: newProfile.fullName,
+          avatarUrl: newProfile.avatarUrl || undefined,
+        },
+        useAuthStore.getState().token || ''
+      );
+    }
+
+    // Sync to Supabase PostgreSQL profiles table
+    if (authUser?.id) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newProfile));
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: newProfile.fullName.trim() || null,
+            avatar_url: newProfile.avatarUrl || null,
+            headline: newProfile.headline.trim() || null,
+            location: newProfile.location.trim() || null,
+            target_role: newProfile.targetRole.trim() || null,
+            experience_level: newProfile.experienceLevel.toLowerCase(),
+            difficulty: newProfile.difficulty.toLowerCase(),
+            skills: newProfile.skills || [],
+            interview_duration: newProfile.interviewDuration,
+            questions_per_session: newProfile.questionsPerSession,
+            allow_hints: newProfile.allowHints,
+            allow_follow_ups: newProfile.allowFollowUps,
+            enable_voice: newProfile.enableVoice,
+            email_notifications: newProfile.emailNotifications,
+            weekly_digest: newProfile.weeklyDigest,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', authUser.id);
+
+        if (error) {
+          console.error('[PROFILE] Failed to update profile in Supabase:', error.message);
+          set({ isSaving: false });
+          return false;
+        }
       } catch (err) {
-        console.error('Failed to save profile settings:', err);
+        console.error('[PROFILE] Exception updating profile in Supabase:', err);
+        set({ isSaving: false });
+        return false;
       }
+    }
 
-      // Sync with Auth Store if fullName or avatar changes
-      const authUser = useAuthStore.getState().user;
-      if (authUser && (updates.fullName || updates.avatarUrl !== undefined)) {
-        useAuthStore.getState().setAuth(
-          {
-            ...authUser,
-            fullName: newProfile.fullName,
-            avatarUrl: newProfile.avatarUrl || undefined,
-          },
-          useAuthStore.getState().token || ''
-        );
-      }
-
-      // Sync with Supabase if connected
-      if (supabase && authUser?.id) {
-        (async () => {
-          try {
-            await supabase.from('profiles').upsert({
-              id: authUser.id,
-              full_name: newProfile.fullName,
-              avatar_path: newProfile.avatarUrl,
-              target_role: newProfile.targetRole,
-              experience_level: newProfile.experienceLevel,
-              headline: newProfile.headline,
-              location: newProfile.location,
-              skills: newProfile.skills,
-              resume_file_name: newProfile.resumeFileName,
-              resume_upload_date: newProfile.resumeUploadDate,
-              resume_file_size: newProfile.resumeFileSize,
-              interview_duration: newProfile.interviewDuration,
-              questions_per_session: newProfile.questionsPerSession,
-              allow_hints: newProfile.allowHints,
-              allow_follow_ups: newProfile.allowFollowUps,
-              enable_voice: newProfile.enableVoice,
-              email_notifications: newProfile.emailNotifications,
-              weekly_digest: newProfile.weeklyDigest,
-            });
-          } catch (err) {
-            console.error('Failed to sync profile update to Supabase:', err);
-          }
-        })();
-      }
-
-      // Sync with Interview Store
-      useInterviewStore.getState().setSetupConfig({
-        selectedRoleTitle: newProfile.targetRole,
-        experienceLevel:
-          newProfile.experienceLevel === 'Student' || newProfile.experienceLevel === 'Junior'
-            ? 'Entry'
-            : newProfile.experienceLevel === 'Senior'
-            ? 'Senior'
-            : 'Mid',
-        difficulty: newProfile.difficulty,
-        resumeFileName: newProfile.resumeFileName,
-      });
-
-      return { profile: newProfile };
+    // Sync with Interview Store
+    useInterviewStore.getState().setSetupConfig({
+      selectedRoleTitle: newProfile.targetRole,
+      experienceLevel:
+        newProfile.experienceLevel === 'Student' || newProfile.experienceLevel === 'Junior'
+          ? 'Entry'
+          : newProfile.experienceLevel === 'Senior'
+          ? 'Senior'
+          : 'Mid',
+      difficulty: newProfile.difficulty,
+      resumeFileName: newProfile.resumeFileName,
     });
+
+    const isComplete = Boolean(newProfile.targetRole && newProfile.targetRole.trim().length > 0 && newProfile.experienceLevel);
+    set({ isOnboarded: isComplete, isSaving: false });
+    return true;
+  },
+
+  completeOnboarding: async (data) => {
+    return get().updateProfile(data);
   },
 
   addSkill: (skill) => {
@@ -192,8 +315,16 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 
   resetProfile: () => {
-    localStorage.removeItem(STORAGE_KEY);
-    set({ profile: initialProfile });
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore
+    }
+    set({
+      profile: defaultEmptyProfile,
+      isOnboarded: false,
+      isLoaded: false,
+      isSaving: false,
+    });
   },
 }));
-
