@@ -52,6 +52,11 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
 
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-danger: var(--status-danger);
+  --color-destructive: var(--destructive);
+
   --color-ascend-ivory: var(--ascend-ivory);
   --color-ascend-beige: var(--ascend-beige);
   --color-ascend-sand: var(--ascend-sand);

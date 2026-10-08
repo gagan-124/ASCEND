@@ -1,31 +1,32 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useParams } from 'react-router-dom';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { InterviewLayout } from '@/layouts/InterviewLayout';
 import { DashboardLayout } from '@/layouts/DashboardLayout';
-import { RouteLoader, AppSessionLoader } from '@/components/common';
+import { RouteLoader, AppSessionLoader, RootErrorBoundary } from '@/components/common';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useProfileStore } from '@/stores/profileStore';
 import { useInterviewStore } from '@/stores/interviewStore';
 
-// Lazy-loaded Page Routes for initial bundle payload reduction
-const LandingPage = lazy(() => import('@/pages/Landing').then((m) => ({ default: m.LandingPage })));
-const OpeningPage = lazy(() => import('@/pages/Opening').then((m) => ({ default: m.OpeningPage })));
-const ATSEvaluatorPage = lazy(() => import('@/pages/ATSEvaluator').then((m) => ({ default: m.ATSEvaluatorPage })));
-const LoginPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.LoginPage })));
-const SignupPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.SignupPage })));
-const ForgotPasswordPage = lazy(() => import('@/pages/Auth').then((m) => ({ default: m.ForgotPasswordPage })));
-const OnboardingPage = lazy(() => import('@/pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
-const InterviewSetupPage = lazy(() => import('@/pages/InterviewSetup').then((m) => ({ default: m.InterviewSetupPage })));
-const InterviewRolesPage = lazy(() => import('@/pages/InterviewRoles').then((m) => ({ default: m.InterviewRolesPage })));
-const InterviewRoomPage = lazy(() => import('@/pages/InterviewRoom').then((m) => ({ default: m.InterviewRoomPage })));
-const ResultsPage = lazy(() => import('@/pages/Results').then((m) => ({ default: m.ResultsPage })));
-const DashboardPage = lazy(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })));
-const ProfileSettingsPage = lazy(() => import('@/pages/ProfileSettings').then((m) => ({ default: m.ProfileSettingsPage })));
-const PrivacyPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.PrivacyPage })));
-const TermsPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.TermsPage })));
+// Lazy-loaded Page Routes with automatic deployment chunk-reload retry
+const LandingPage = lazyWithRetry(() => import('@/pages/Landing').then((m) => ({ default: m.LandingPage })));
+const OpeningPage = lazyWithRetry(() => import('@/pages/Opening').then((m) => ({ default: m.OpeningPage })));
+const ATSEvaluatorPage = lazyWithRetry(() => import('@/pages/ATSEvaluator').then((m) => ({ default: m.ATSEvaluatorPage })));
+const LoginPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.LoginPage })));
+const SignupPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.SignupPage })));
+const ForgotPasswordPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.ForgotPasswordPage })));
+const OnboardingPage = lazyWithRetry(() => import('@/pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
+const InterviewSetupPage = lazyWithRetry(() => import('@/pages/InterviewSetup').then((m) => ({ default: m.InterviewSetupPage })));
+const InterviewRolesPage = lazyWithRetry(() => import('@/pages/InterviewRoles').then((m) => ({ default: m.InterviewRolesPage })));
+const InterviewRoomPage = lazyWithRetry(() => import('@/pages/InterviewRoom').then((m) => ({ default: m.InterviewRoomPage })));
+const ResultsPage = lazyWithRetry(() => import('@/pages/Results').then((m) => ({ default: m.ResultsPage })));
+const DashboardPage = lazyWithRetry(() => import('@/pages/Dashboard').then((m) => ({ default: m.DashboardPage })));
+const ProfileSettingsPage = lazyWithRetry(() => import('@/pages/ProfileSettings').then((m) => ({ default: m.ProfileSettingsPage })));
+const PrivacyPage = lazyWithRetry(() => import('@/pages/Legal').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazyWithRetry(() => import('@/pages/Legal').then((m) => ({ default: m.TermsPage })));
 
 function LazyRoute({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <PublicLayout />,
+    errorElement: <RootErrorBoundary />,
     children: [
       { index: true, element: <LazyRoute><LandingPage /></LazyRoute> },
       { path: 'opening', element: <LazyRoute><OpeningPage /></LazyRoute> },
@@ -99,6 +101,7 @@ export const router = createBrowserRouter([
   {
     path: '/auth',
     element: <AuthLayout />,
+    errorElement: <RootErrorBoundary />,
     children: [
       { path: 'login', element: <LazyRoute><LoginPage /></LazyRoute> },
       { path: 'signup', element: <LazyRoute><SignupPage /></LazyRoute> },
@@ -108,12 +111,14 @@ export const router = createBrowserRouter([
   },
   {
     element: <OnboardingRoute />,
+    errorElement: <RootErrorBoundary />,
     children: [
       { path: '/onboarding', element: <LazyRoute><OnboardingPage /></LazyRoute> },
     ],
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RootErrorBoundary />,
     children: [
       {
         path: '/role',
@@ -167,3 +172,4 @@ export const router = createBrowserRouter([
   },
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
+

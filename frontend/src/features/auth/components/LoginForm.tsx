@@ -71,8 +71,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
   return (
     <div
       className={cn(
-        'w-full max-w-[420px] mx-auto p-6 sm:p-7 rounded-2xl bg-[#0c1322] border border-slate-800/80',
-        'shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-slate-100 select-none',
+        'w-full max-w-[420px] mx-auto p-6 sm:p-7 rounded-2xl bg-surface border border-border/60 text-foreground',
+        'shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)] select-none',
         'transition-colors duration-150',
         className
       )}
@@ -82,18 +82,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
         <Link to="/" aria-label="Return to Home" className="mb-3 inline-block">
           <AscendLogo size="md" />
         </Link>
-        <h1 className="text-xl sm:text-2xl font-stardom font-normal text-slate-100 uppercase tracking-tight">
+        <h1 className="text-xl sm:text-2xl font-stardom font-normal text-foreground uppercase tracking-tight">
           WELCOME BACK
         </h1>
-        <p className="text-xs font-sans text-slate-400 mt-1">
+        <p className="text-xs font-sans text-foreground/70 mt-1">
           Sign in to continue your interview practice
         </p>
       </div>
 
       {/* Error Feedback Banner */}
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-lg bg-red-950/50 border border-red-800/50 text-red-300 flex items-start gap-2.5 text-xs font-sans">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div className="mb-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:bg-red-950/50 dark:border-red-800/60 dark:text-red-300 flex items-start gap-2.5 text-xs font-sans">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
           <span>{errorMessage}</span>
         </div>
       )}
@@ -106,9 +106,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
       {/* OR Divider */}
       <div className="relative my-5 flex items-center justify-center">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-800" />
+          <div className="w-full border-t border-border/40" />
         </div>
-        <span className="relative px-3 bg-[#0c1322] text-[10px] font-mono uppercase tracking-widest text-slate-400">
+        <span className="relative px-3 bg-surface text-[10px] font-mono uppercase tracking-widest text-foreground/50">
           OR
         </span>
       </div>
@@ -118,7 +118,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="auth-email"
-            className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-300"
+            className="text-[11px] font-mono font-medium uppercase tracking-wider text-foreground/80"
           >
             EMAIL
           </label>
@@ -132,8 +132,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
             placeholder="candidate@company.com"
             disabled={isLoading}
             className={cn(
-              'h-10 px-3.5 rounded-lg bg-slate-900/90 border border-slate-700/70 text-slate-100 text-sm',
-              'placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:border-amber-400/50',
+              'h-10 px-3.5 rounded-lg bg-background/80 dark:bg-background/30 border border-border/80 dark:border-border/40 text-foreground text-sm',
+              'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
           />
@@ -143,13 +143,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
           <div className="flex items-center justify-between">
             <label
               htmlFor="auth-password"
-              className="text-[11px] font-mono font-medium uppercase tracking-wider text-slate-300"
+              className="text-[11px] font-mono font-medium uppercase tracking-wider text-foreground/80"
             >
               PASSWORD
             </label>
             <Link
               to="/auth/forgot-password"
-              className="text-xs font-sans text-slate-400 hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+              className="text-xs font-sans text-foreground/70 hover:text-foreground underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
             >
               Forgot password?
             </Link>
@@ -164,21 +164,21 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
             placeholder="••••••••"
             disabled={isLoading}
             className={cn(
-              'h-10 px-3.5 rounded-lg bg-slate-900/90 border border-slate-700/70 text-slate-100 text-sm',
-              'placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 focus-visible:border-amber-400/50',
+              'h-10 px-3.5 rounded-lg bg-background/80 dark:bg-background/30 border border-border/80 dark:border-border/40 text-foreground text-sm',
+              'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
           />
         </div>
 
-        {/* Tactile Cream/Off-white Primary SIGN IN Button */}
+        {/* Primary SIGN IN Button */}
         <LoadingButton
           type="submit"
           isLoading={isLoading}
           loadingText="SIGNING IN..."
           className={cn(
-            'mt-1 h-10 w-full rounded-xl font-mono text-xs font-semibold uppercase tracking-widest text-slate-950 bg-[#fef3c7] hover:bg-[#fde68a]',
-            'shadow-[0_2px_8px_rgba(254,243,199,0.15)] active:scale-[0.99]'
+            'mt-1 h-10 w-full rounded-xl font-mono text-xs font-semibold uppercase tracking-widest text-background bg-foreground',
+            'shadow-[2px_2px_8px_rgba(0,0,0,0.12)] active:scale-[0.99] hover:opacity-95'
           )}
         >
           SIGN IN
@@ -186,28 +186,28 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
       </form>
 
       {/* Sign Up Link */}
-      <div className="mt-5 text-center text-xs font-sans text-slate-400">
+      <div className="mt-5 text-center text-xs font-sans text-foreground/70">
         Don&apos;t have an account?{' '}
         <Link
           to={`/auth/signup${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
-          className="font-medium text-slate-200 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+          className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
         >
           Sign up
         </Link>
       </div>
 
       {/* Subtle Legal Navigation Row */}
-      <div className="mt-5 pt-3.5 border-t border-slate-800/60 flex items-center justify-center gap-2 text-[11px] font-mono text-slate-400 select-none">
+      <div className="mt-5 pt-3.5 border-t border-border/40 flex items-center justify-center gap-2 text-[11px] font-mono text-foreground/50 select-none">
         <Link
           to="/privacy"
-          className="hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+          className="hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
         >
           Privacy Policy
         </Link>
         <span>·</span>
         <Link
           to="/terms"
-          className="hover:text-slate-200 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/40 rounded"
+          className="hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
         >
           Terms &amp; Conditions
         </Link>

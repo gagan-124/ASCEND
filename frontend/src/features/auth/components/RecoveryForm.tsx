@@ -44,8 +44,8 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
   return (
     <div
       className={cn(
-        'w-full max-w-md mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-border/40',
-        'shadow-[0_4px_24px_rgba(16,44,87,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.4)]',
+        'w-full max-w-md mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-border/60 text-foreground',
+        'shadow-sm dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)] select-none',
         'transition-colors duration-150',
         className
       )}
@@ -58,23 +58,23 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
         <h1 className="text-2xl sm:text-3xl font-stardom font-normal text-foreground uppercase tracking-tight">
           Reset password
         </h1>
-        <p className="text-xs sm:text-sm font-sans text-foreground/60 mt-1">
+        <p className="text-xs sm:text-sm font-sans text-foreground/70 mt-1">
           Enter your email to receive a password reset link
         </p>
       </div>
 
       {/* Error Feedback Banner */}
       {errorMessage && (
-        <div className="mb-5 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-2.5 text-xs sm:text-sm font-sans">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 dark:bg-red-950/50 dark:border-red-800/60 dark:text-red-300 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Success Feedback Banner */}
       {successMessage && (
-        <div className="mb-5 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
-          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+        <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-800/60 dark:text-emerald-300 flex items-start gap-2.5 text-xs sm:text-sm font-sans">
+          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span>{successMessage}</span>
         </div>
       )}
@@ -82,7 +82,7 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
       {/* Email Recovery Form */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 font-sans">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="recovery-email" className="text-xs font-mono font-medium uppercase tracking-wider text-foreground/60 select-none">
+          <label htmlFor="recovery-email" className="text-[11px] font-mono font-medium uppercase tracking-wider text-foreground/80 select-none">
             Email
           </label>
           <input
@@ -95,7 +95,7 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
             placeholder="candidate@company.com"
             disabled={isLoading}
             className={cn(
-              'h-11 px-3.5 rounded-lg bg-background/60 dark:bg-background/30 border border-border/40 text-foreground text-sm',
+              'h-11 px-3.5 rounded-lg bg-background/80 dark:bg-background/30 border border-border/80 dark:border-border/40 text-foreground text-sm',
               'placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40',
               'transition-all duration-150'
             )}
@@ -118,15 +118,16 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
       </form>
 
       {/* Switch to Login Link */}
-      <div className="mt-6 text-center text-xs font-sans text-foreground/60 select-none">
+      <div className="mt-6 text-center text-xs font-sans text-foreground/70 select-none">
         Remembered your password?{' '}
         <Link
           to="/auth/login"
-          className="font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
+          className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40 rounded"
         >
           Back to Sign in
         </Link>
       </div>
     </div>
+
   );
 };

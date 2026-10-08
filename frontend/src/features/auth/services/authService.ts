@@ -23,14 +23,26 @@ export function parseAuthError(error: unknown): string {
   if (lower.includes('user already registered') || lower.includes('already exists')) {
     return 'An account with this email address already exists. Please sign in.';
   }
+  if (
+    lower.includes('password should contain at least') ||
+    lower.includes('abcdefghijklmnopqrstuvwxyz') ||
+    lower.includes('password_strength')
+  ) {
+    return 'Password must contain at least one lowercase letter, one uppercase letter, and one number.';
+  }
   if (lower.includes('password should be at least') || lower.includes('weak_password')) {
     return 'Password must be at least 6 characters long.';
   }
   if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) {
     return 'Please confirm your email address before signing in. Check your inbox for the confirmation email.';
   }
-  if (lower.includes('rate limit') || lower.includes('too many requests') || lower.includes('over_email_send_rate_limit')) {
-    return 'Too many authentication attempts. Please wait a moment and try again.';
+  if (
+    lower.includes('rate limit') ||
+    lower.includes('too many requests') ||
+    lower.includes('over_email_send_rate_limit') ||
+    lower.includes('email_rate_limit')
+  ) {
+    return 'Too many authentication attempts. Please wait a few minutes before trying again.';
   }
   if (lower.includes('failed to fetch') || lower.includes('networkerror')) {
     return 'Network error. Unable to reach authentication server.';

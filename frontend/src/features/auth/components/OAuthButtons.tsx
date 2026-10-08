@@ -54,7 +54,7 @@ export const OAuthButtons: React.FC<OAuthButtonsProps> = ({
       id: 'github' as const,
       label: 'Sign in with GitHub',
       icon: ({ className }: { className?: string }) => (
-        <Github className={cn('w-5 h-5 text-slate-100', className)} />
+        <Github className={cn('w-5 h-5 text-foreground dark:text-slate-100', className)} />
       ),
     },
   ];
@@ -73,9 +73,9 @@ export const OAuthButtons: React.FC<OAuthButtonsProps> = ({
             onClick={() => onSelectProvider(p.id)}
             className={cn(
               'h-11 w-11 sm:h-12 sm:w-12 flex items-center justify-center rounded-xl',
-              'bg-[#0a101f] border border-slate-700/70 text-slate-100 shadow-md',
-              'hover:border-slate-500 hover:bg-slate-800/80 active:translate-y-[1px]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40',
+              'bg-background/80 dark:bg-[#0a101f] border border-border/80 dark:border-slate-700/70 text-foreground dark:text-slate-100 shadow-sm dark:shadow-md',
+              'hover:border-foreground/40 dark:hover:border-slate-500 hover:bg-surface-muted dark:hover:bg-slate-800/80 active:translate-y-[1px]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 dark:focus-visible:ring-amber-500/40',
               'transition-all duration-150 ease-out select-none cursor-pointer',
               'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
             )}
