@@ -79,49 +79,65 @@ async function buildUserProfileFromSession(session: Session): Promise<UserProfil
   };
 }
 
+let isInitializedListener = false;
+let initPromise: Promise<void> | null = null;
+
 export const authService = {
   /**
    * Initializes Supabase Auth listener and restores session on application mount.
    * Single source of truth: Supabase Auth session -> Auth Store -> UI.
+   * Idempotent: returns shared promise if already in-flight.
    */
   async initializeAuth(): Promise<void> {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user) {
-        const userProfile = await buildUserProfileFromSession(session);
-        useAuthStore.getState().setAuth(userProfile, session.access_token);
-        await useProfileStore.getState().fetchProfile(
-          session.user.id,
-          session.user.email || '',
-          session.user.user_metadata
-        );
-      } else {
-        useAuthStore.getState().clearAuth();
-        useProfileStore.getState().resetProfile();
-      }
-    } catch (err) {
-      console.error('[AUTH] Session restoration failed:', err);
-      useAuthStore.getState().clearAuth();
-      useProfileStore.getState().resetProfile();
-    } finally {
-      useAuthStore.getState().setInitialized(true);
+    if (initPromise) {
+      return initPromise;
     }
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[AUTH] Auth state changed: ${event}`);
-      if (session && session.user) {
-        const userProfile = await buildUserProfileFromSession(session);
-        useAuthStore.getState().setAuth(userProfile, session.access_token);
-        await useProfileStore.getState().fetchProfile(
-          session.user.id,
-          session.user.email || '',
-          session.user.user_metadata
-        );
-      } else if (event === 'SIGNED_OUT' || !session) {
+    initPromise = (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+          const userProfile = await buildUserProfileFromSession(session);
+          useAuthStore.getState().setAuth(userProfile, session.access_token);
+          await useProfileStore.getState().fetchProfile(
+            session.user.id,
+            session.user.email || '',
+            session.user.user_metadata
+          );
+        } else {
+          useAuthStore.getState().clearAuth();
+          useProfileStore.getState().resetProfile();
+        }
+      } catch (err) {
+        console.error('[AUTH] Session restoration failed:', err);
         useAuthStore.getState().clearAuth();
         useProfileStore.getState().resetProfile();
+      } finally {
+        useAuthStore.getState().setInitialized(true);
+        initPromise = null;
       }
-    });
+
+      if (!isInitializedListener) {
+        isInitializedListener = true;
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log(`[AUTH] Auth state changed: ${event}`);
+          if (session && session.user) {
+            const userProfile = await buildUserProfileFromSession(session);
+            useAuthStore.getState().setAuth(userProfile, session.access_token);
+            await useProfileStore.getState().fetchProfile(
+              session.user.id,
+              session.user.email || '',
+              session.user.user_metadata
+            );
+          } else if (event === 'SIGNED_OUT' || !session) {
+            useAuthStore.getState().clearAuth();
+            useProfileStore.getState().resetProfile();
+          }
+        });
+      }
+    })();
+
+    return initPromise;
   },
 
   async signOut(): Promise<void> {
@@ -174,7 +190,7 @@ export const authService = {
           data: {
             full_name: trimmedName,
           },
-          emailRedirectTo: `${window.location.origin}/interview/setup`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
@@ -228,7 +244,7 @@ export const authService = {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/interview/setup`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 

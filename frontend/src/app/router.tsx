@@ -18,6 +18,7 @@ const ATSEvaluatorPage = lazyWithRetry(() => import('@/pages/ATSEvaluator').then
 const LoginPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.SignupPage })));
 const ForgotPasswordPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.ForgotPasswordPage })));
+const AuthCallbackPage = lazyWithRetry(() => import('@/pages/Auth').then((m) => ({ default: m.AuthCallbackPage })));
 const OnboardingPage = lazyWithRetry(() => import('@/pages/Onboarding').then((m) => ({ default: m.OnboardingPage })));
 const InterviewSetupPage = lazyWithRetry(() => import('@/pages/InterviewSetup').then((m) => ({ default: m.InterviewSetupPage })));
 const InterviewRolesPage = lazyWithRetry(() => import('@/pages/InterviewRoles').then((m) => ({ default: m.InterviewRolesPage })));
@@ -105,6 +106,7 @@ export const router = createBrowserRouter([
     children: [
       { path: 'login', element: <LazyRoute><LoginPage /></LazyRoute> },
       { path: 'signup', element: <LazyRoute><SignupPage /></LazyRoute> },
+      { path: 'callback', element: <LazyRoute><AuthCallbackPage /></LazyRoute> },
       { path: 'forgot-password', element: <LazyRoute><ForgotPasswordPage /></LazyRoute> },
       { path: 'recovery', element: <LazyRoute><ForgotPasswordPage /></LazyRoute> },
     ],

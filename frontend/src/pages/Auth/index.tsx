@@ -3,6 +3,8 @@ import { LoginForm } from '@/features/auth/components/LoginForm';
 import { SignupForm } from '@/features/auth/components/SignupForm';
 import { RecoveryForm } from '@/features/auth/components/RecoveryForm';
 
+export { AuthCallbackPage } from './AuthCallbackPage';
+
 export function LoginPage() {
   return (
     <AuthPageContainer>
@@ -26,3 +28,4 @@ export function ForgotPasswordPage() {
     </AuthPageContainer>
   );
 }
+
