@@ -298,13 +298,11 @@ export function InterviewRoomPage() {
         setInitStep(null);
         setRoomState('QUESTION');
       }, 400);
-    } catch {
-      setInitStep('ready');
-      setTimeout(() => {
-        setDeviceCheckComplete(true);
-        setInitStep(null);
-        setRoomState('QUESTION');
-      }, 300);
+    } catch (err) {
+      console.error('[InterviewRoom] Session creation failed:', err);
+      const message = err instanceof Error ? err.message : 'Failed to generate interview questions';
+      setInitError(message);
+      setInitStep('session');
     }
   };
 

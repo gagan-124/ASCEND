@@ -1,200 +1,191 @@
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { apiClient } from './client';
 import type { InterviewSession, CreateInterviewPayload, SubmitAnswerPayload, TerminationReason } from '@/types/interview';
-import type { QuestionCategory } from '@/types/question';
+import type { QuestionCategory, QuestionDifficulty } from '@/types/question';
 
-// In-memory backend session store for development mode fallback
-const mockSessionStore = new Map<string, InterviewSession>();
+/**
+ * Normalizes user-facing experience level to PostgreSQL check constraint:
+ * ('student', 'entry', 'junior', 'mid', 'senior')
+ */
+function normalizeExperienceLevel(level?: string): 'student' | 'entry' | 'junior' | 'mid' | 'senior' {
+  if (!level) return 'mid';
+  const lower = level.toLowerCase().trim();
+  if (lower === 'lead' || lower === 'staff' || lower === 'principal') return 'senior';
+  if (['student', 'entry', 'junior', 'mid', 'senior'].includes(lower)) {
+    return lower as 'student' | 'entry' | 'junior' | 'mid' | 'senior';
+  }
+  return 'mid';
+}
+
+/**
+ * Normalizes difficulty to PostgreSQL check constraint:
+ * ('easy', 'medium', 'hard')
+ */
+function normalizeDifficulty(diff?: string): 'easy' | 'medium' | 'hard' {
+  if (!diff) return 'medium';
+  const lower = diff.toLowerCase().trim();
+  if (['easy', 'medium', 'hard'].includes(lower)) {
+    return lower as 'easy' | 'medium' | 'hard';
+  }
+  return 'medium';
+}
 
 export const interviewsApi = {
+  /**
+   * Authoritative interview creation & question generation flow.
+   * Invokes the protected Supabase Edge Function 'generate-interview-questions'.
+   * Throws explicit actionable errors on failure. Never returns fabricated mock data.
+   */
   createSession: async (payload: CreateInterviewPayload): Promise<InterviewSession> => {
     const authUser = useAuthStore.getState().user;
-
-    if (supabase && authUser?.id) {
-      try {
-        const title = `${payload.roleTitle || 'SOFTWARE ENGINEER'} Interview - ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-
-        const { data: interviewRow, error: interviewError } = await supabase
-          .from('interviews')
-          .insert({
-            user_id: authUser.id,
-            title,
-            role: payload.roleTitle || 'SOFTWARE ENGINEER',
-            interview_type: payload.mode || 'role',
-            status: 'in_progress',
-            experience_level: payload.experienceLevel || 'Senior',
-            difficulty: payload.difficulty || 'Medium',
-            started_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (!interviewError && interviewRow) {
-          const initialQuestions = [
-            {
-              interview_id: interviewRow.id,
-              question_number: 1,
-              question: `Welcome! Let's start with your background as a ${payload.roleTitle || 'SOFTWARE ENGINEER'}. What is the most challenging technical project you've led recently?`,
-              category: 'technical',
-            },
-            {
-              interview_id: interviewRow.id,
-              question_number: 2,
-              question: 'How do you approach system architecture design decisions when faced with trade-offs between performance, maintainability, and delivery speed?',
-              category: 'system_design',
-            },
-            {
-              interview_id: interviewRow.id,
-              question_number: 3,
-              question: 'Describe a situation where you had a major disagreement with a team member or stakeholder regarding a key technical direction.',
-              category: 'behavioral',
-            },
-          ];
-
-          const { data: questionRows } = await supabase
-            .from('interview_questions')
-            .insert(initialQuestions)
-            .select();
-
-          const questionsList = (questionRows || []).map((q) => ({
-            id: q.id,
-            text: q.question,
-            category: (q.category as QuestionCategory) || 'technical',
-            difficulty: 'medium' as const,
-            timeLimitSeconds: 180,
-          }));
-
-          const session: InterviewSession = {
-            id: interviewRow.id,
-            userId: authUser.id,
-            roleTitle: interviewRow.role,
-            experienceLevel: interviewRow.experience_level || 'Senior',
-            currentState: 'READY',
-            startedAt: interviewRow.started_at,
-            currentQuestionIndex: 0,
-            questions: questionsList,
-          };
-
-          mockSessionStore.set(session.id, session);
-          return session;
-        }
-      } catch (err) {
-        console.error('Supabase interview creation failed, using fallback:', err);
-      }
+    if (!authUser?.id) {
+      throw new Error('Authentication required: please sign in before starting an interview session.');
     }
 
-    try {
-      const session = await apiClient.post<InterviewSession>('/interviews', payload);
-      mockSessionStore.set(session.id, session);
-      return session;
-    } catch {
-      // Fallback session generator for dev environment testing
-      const mockSessionId = 'sess_' + Math.random().toString(36).substring(2, 9);
-      const session: InterviewSession = {
-        id: mockSessionId,
-        userId: authUser?.id || 'usr_current_user',
-        roleTitle: payload.roleTitle || 'SOFTWARE ENGINEER',
-        experienceLevel: payload.experienceLevel || 'Senior',
-        currentState: 'READY',
-        startedAt: new Date().toISOString(),
-        currentQuestionIndex: 0,
-        questions: [
-          {
-            id: 'q1',
-            text: `Welcome! Let's start with your background as a ${payload.roleTitle}. What is the most challenging technical project you've led recently?`,
-            category: 'technical',
-            difficulty: 'medium',
-            timeLimitSeconds: 180,
-          },
-          {
-            id: 'q2',
-            text: 'How do you approach system architecture design decisions when faced with trade-offs between performance, maintainability, and delivery speed?',
-            category: 'system_design',
-            difficulty: 'hard',
-            timeLimitSeconds: 240,
-          },
-          {
-            id: 'q3',
-            text: 'Describe a situation where you had a major disagreement with a team member or stakeholder regarding a key technical direction.',
-            category: 'behavioral',
-            difficulty: 'medium',
-            timeLimitSeconds: 180,
-          },
-        ],
-      };
-      mockSessionStore.set(mockSessionId, session);
-      return session;
+    const normalizedRole = (payload.roleTitle || 'Software Engineer').trim();
+    const normalizedExp = normalizeExperienceLevel(payload.experienceLevel);
+    const normalizedDiff = normalizeDifficulty(payload.difficulty);
+    const normalizedType = payload.mode === 'resume' ? 'resume' : 'role';
+
+    console.log(`[INTERVIEWS] Requesting interview question generation for "${normalizedRole}" (${normalizedExp}, ${normalizedDiff})`);
+
+    const { data, error } = await supabase.functions.invoke('generate-interview-questions', {
+      body: {
+        role: normalizedRole,
+        experienceLevel: normalizedExp,
+        difficulty: normalizedDiff,
+        interviewType: normalizedType,
+        questionCount: 3,
+      },
+    });
+
+    if (error) {
+      console.error('[INTERVIEWS] Edge Function generation failed:', error);
+      const errorMessage =
+        (data as { message?: string })?.message ||
+        error.message ||
+        'Server failed to generate interview questions. Please try again.';
+      throw new Error(errorMessage);
     }
+
+    const sessionData = (data as { session?: InterviewSession })?.session;
+    if (!sessionData || !sessionData.id || !Array.isArray(sessionData.questions)) {
+      throw new Error('Malformed response from interview generation service.');
+    }
+
+    return sessionData;
   },
+
+  /**
+   * Retrieves an interview session and its questions directly from Supabase PostgreSQL.
+   */
   getSession: async (interviewId: string): Promise<InterviewSession> => {
-    try {
-      return await apiClient.get<InterviewSession>(`/interviews/${interviewId}`);
-    } catch {
-      const stored = mockSessionStore.get(interviewId);
-      if (stored) return stored;
-      throw new Error('Session not found');
+    const { data: interview, error: intError } = await supabase
+      .from('interviews')
+      .select('*')
+      .eq('id', interviewId)
+      .maybeSingle();
+
+    if (intError) {
+      throw new Error(`Failed to load interview: ${intError.message}`);
+    }
+
+    if (!interview) {
+      throw new Error(`Interview session not found (${interviewId})`);
+    }
+
+    const { data: questions, error: qError } = await supabase
+      .from('interview_questions')
+      .select('*')
+      .eq('interview_id', interviewId)
+      .order('question_number', { ascending: true });
+
+    if (qError) {
+      throw new Error(`Failed to load interview questions: ${qError.message}`);
+    }
+
+    const currentState =
+      interview.status === 'cancelled'
+        ? 'TERMINATED'
+        : interview.status === 'completed'
+        ? 'COMPLETE'
+        : 'READY';
+
+    return {
+      id: interview.id,
+      userId: interview.user_id,
+      roleTitle: interview.role,
+      experienceLevel: interview.experience_level || 'mid',
+      currentState,
+      terminationReason: interview.status === 'cancelled' ? 'USER_ENDED' : undefined,
+      startedAt: interview.started_at,
+      currentQuestionIndex: 0,
+      questions: (questions || []).map((q) => ({
+        id: q.id,
+        text: q.question,
+        category: (q.category as QuestionCategory) || 'technical',
+        difficulty: (q.difficulty as QuestionDifficulty) || 'medium',
+        timeLimitSeconds: q.time_limit_seconds || 180,
+      })),
+    };
+  },
+
+  /**
+   * Submits candidate response directly to public.interview_questions using column UPDATE permissions.
+   */
+  submitAnswer: async (_interviewId: string, payload: SubmitAnswerPayload): Promise<void> => {
+    const { error } = await supabase
+      .from('interview_questions')
+      .update({
+        candidate_response: payload.transcriptText || null,
+      })
+      .eq('id', payload.questionId);
+
+    if (error) {
+      console.error('[INTERVIEWS] Failed to persist candidate response:', error.message);
+      throw new Error(`Failed to submit response: ${error.message}`);
     }
   },
-  submitAnswer: (interviewId: string, payload: SubmitAnswerPayload) =>
-    apiClient.post<void>(`/interviews/${interviewId}/answers`, payload),
-  completeSession: (interviewId: string) => apiClient.post<void>(`/interviews/${interviewId}/complete`),
+
+  /**
+   * Concludes the interview session in the database.
+   */
+  completeSession: async (_interviewId: string): Promise<void> => {
+    // Note: Completed state is finalized by evaluate-interview-session Edge Function
+    console.log(`[INTERVIEWS] Concluding interview session ${_interviewId}`);
+  },
+
+  /**
+   * Cancels an active in-progress interview session via Layer 5 Controlled RPC.
+   */
   terminateSession: async (
     interviewId: string,
     reason: TerminationReason,
-    useKeepalive: boolean = false
+    _useKeepalive: boolean = false
   ): Promise<InterviewSession> => {
-    // Idempotent local store check first
-    const stored = mockSessionStore.get(interviewId);
-    if (stored && stored.currentState === 'TERMINATED') {
-      return stored;
-    }
+    try {
+      const { error } = await supabase.rpc('cancel_interview', {
+        p_interview_id: interviewId,
+      });
 
-    const payload = { reason, endedAt: new Date().toISOString() };
-
-    if (useKeepalive && typeof fetch !== 'undefined') {
-      try {
-        const url = `/api/interviews/${interviewId}/terminate`;
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          keepalive: true,
-        }).catch(() => {});
-      } catch {
-        // Fallback silently if fetch fails
+      if (error) {
+        console.warn('[INTERVIEWS] cancel_interview RPC warning:', error.message);
       }
-    } else {
-      try {
-        await apiClient.post<void>(`/interviews/${interviewId}/terminate`, payload);
-      } catch {
-        // Fallback for dev mode
-      }
+    } catch (rpcErr) {
+      console.error('[INTERVIEWS] Failed to invoke cancel_interview RPC:', rpcErr);
     }
 
-    if (stored) {
-      stored.currentState = 'TERMINATED';
-      stored.terminationReason = stored.terminationReason || reason;
-      stored.endedAt = payload.endedAt;
-      mockSessionStore.set(interviewId, stored);
-      return stored;
-    }
-
-    const terminatedSession: InterviewSession = {
+    return {
       id: interviewId,
-      userId: 'usr_current_user',
+      userId: useAuthStore.getState().user?.id || '',
       roleTitle: 'SOFTWARE ENGINEER',
-      experienceLevel: 'Senior',
+      experienceLevel: 'Mid',
       currentState: 'TERMINATED',
       terminationReason: reason,
       questions: [],
       currentQuestionIndex: 0,
       startedAt: new Date().toISOString(),
-      endedAt: payload.endedAt,
+      endedAt: new Date().toISOString(),
     };
-    mockSessionStore.set(interviewId, terminatedSession);
-    return terminatedSession;
   },
 };
-
-
