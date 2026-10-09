@@ -219,18 +219,28 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     }
 
     // Sync to Supabase PostgreSQL profiles table
-    if (authUser?.id) {
+    let userId = authUser?.id;
+    if (!userId) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        userId = user?.id;
+      } catch (authErr) {
+        console.warn('[PROFILE] Unable to retrieve authenticated user session:', authErr);
+      }
+    }
+
+    if (userId) {
       try {
         const { error } = await supabase
           .from('profiles')
           .update({
-            full_name: newProfile.fullName.trim() || null,
+            full_name: newProfile.fullName?.trim() || null,
             avatar_url: newProfile.avatarUrl || null,
-            headline: newProfile.headline.trim() || null,
-            location: newProfile.location.trim() || null,
-            target_role: newProfile.targetRole.trim() || null,
-            experience_level: newProfile.experienceLevel.toLowerCase(),
-            difficulty: newProfile.difficulty.toLowerCase(),
+            headline: newProfile.headline?.trim() || null,
+            location: newProfile.location?.trim() || null,
+            target_role: newProfile.targetRole?.trim() || null,
+            experience_level: newProfile.experienceLevel ? newProfile.experienceLevel.toLowerCase() : null,
+            difficulty: newProfile.difficulty ? newProfile.difficulty.toLowerCase() : null,
             skills: newProfile.skills || [],
             interview_duration: newProfile.interviewDuration,
             questions_per_session: newProfile.questionsPerSession,
@@ -239,9 +249,8 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
             enable_voice: newProfile.enableVoice,
             email_notifications: newProfile.emailNotifications,
             weekly_digest: newProfile.weeklyDigest,
-            updated_at: new Date().toISOString(),
           })
-          .eq('id', authUser.id);
+          .eq('id', userId);
 
         if (error) {
           console.error('[PROFILE] Failed to update profile in Supabase:', error.message);
@@ -253,6 +262,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
         set({ isSaving: false });
         return false;
       }
+    } else {
+      console.error('[PROFILE] Cannot update profile: User is not authenticated.');
+      set({ isSaving: false });
+      return false;
     }
 
     // Sync with Interview Store
