@@ -12,42 +12,101 @@ export interface AuthResponse {
 
 export function parseAuthError(error: unknown): string {
   if (!error) return 'An unexpected error occurred.';
-  const msg = typeof error === 'object' && error !== null && 'message' in error
-    ? String((error as { message: unknown }).message)
-    : String(error);
 
-  const lower = msg.toLowerCase();
-  if (lower.includes('invalid login credentials') || lower.includes('invalid_credentials')) {
+  const errObj = typeof error === 'object' && error !== null ? (error as Record<string, unknown>) : null;
+  const rawMsg = errObj && typeof errObj.message === 'string' ? errObj.message : String(error);
+  const rawCode = errObj && typeof errObj.code === 'string' ? errObj.code.toLowerCase() : '';
+  const status = errObj && typeof errObj.status === 'number' ? errObj.status : null;
+  const lowerMsg = rawMsg.toLowerCase();
+
+  // 1. Email Send Rate Limit (Supabase built-in SMTP rate limit of 2-3 emails/hr)
+  if (
+    rawCode === 'over_email_send_rate_limit' ||
+    rawCode === 'email_rate_limit_exceeded' ||
+    lowerMsg.includes('over_email_send_rate_limit') ||
+    lowerMsg.includes('email rate limit exceeded') ||
+    lowerMsg.includes('email_rate_limit') ||
+    (status === 429 && lowerMsg.includes('email'))
+  ) {
+    return 'Too many verification emails have been requested. Please wait before trying again, or continue with Google or GitHub sign in.';
+  }
+
+  // 2. Authentication Request Rate Limit (IP or client request limits)
+  if (
+    rawCode === 'over_request_rate_limit' ||
+    rawCode === 'too_many_requests' ||
+    lowerMsg.includes('over_request_rate_limit') ||
+    lowerMsg.includes('too many requests') ||
+    lowerMsg.includes('rate limit') ||
+    status === 429
+  ) {
+    return 'Too many attempts. Please wait a few minutes before trying again.';
+  }
+
+  // 3. Invalid credentials
+  if (
+    rawCode === 'invalid_credentials' ||
+    rawCode === 'invalid_grant' ||
+    lowerMsg.includes('invalid login credentials') ||
+    lowerMsg.includes('invalid_credentials')
+  ) {
     return 'Invalid email or password. Please check your credentials and try again.';
   }
-  if (lower.includes('user already registered') || lower.includes('already exists')) {
+
+  // 4. User already registered
+  if (
+    rawCode === 'user_already_exists' ||
+    rawCode === 'user_already_registered' ||
+    lowerMsg.includes('user already registered') ||
+    lowerMsg.includes('user already exists') ||
+    lowerMsg.includes('already registered')
+  ) {
     return 'An account with this email address already exists. Please sign in.';
   }
+
+  // 5. Password complexity / strength
   if (
-    lower.includes('password should contain at least') ||
-    lower.includes('abcdefghijklmnopqrstuvwxyz') ||
-    lower.includes('password_strength')
+    rawCode === 'weak_password' ||
+    lowerMsg.includes('password should contain at least') ||
+    lowerMsg.includes('abcdefghijklmnopqrstuvwxyz') ||
+    lowerMsg.includes('password_strength')
   ) {
     return 'Password must contain at least one lowercase letter, one uppercase letter, and one number.';
   }
-  if (lower.includes('password should be at least') || lower.includes('weak_password')) {
+  if (lowerMsg.includes('password should be at least')) {
     return 'Password must be at least 6 characters long.';
   }
-  if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed')) {
+
+  // 6. Unconfirmed email
+  if (
+    rawCode === 'email_not_confirmed' ||
+    lowerMsg.includes('email not confirmed') ||
+    lowerMsg.includes('email_not_confirmed')
+  ) {
     return 'Please confirm your email address before signing in. Check your inbox for the confirmation email.';
   }
+
+  // 7. Expired or invalid verification link
   if (
-    lower.includes('rate limit') ||
-    lower.includes('too many requests') ||
-    lower.includes('over_email_send_rate_limit') ||
-    lower.includes('email_rate_limit')
+    rawCode === 'otp_expired' ||
+    lowerMsg.includes('email link is invalid or has expired') ||
+    lowerMsg.includes('one-time token not found') ||
+    lowerMsg.includes('token has expired')
   ) {
-    return 'Too many authentication attempts. Please wait a few minutes before trying again.';
+    return 'This verification link has expired or has already been used. Please request a new one.';
   }
-  if (lower.includes('failed to fetch') || lower.includes('networkerror')) {
-    return 'Network error. Unable to reach authentication server.';
+
+  // 8. Network / connection failures
+  if (
+    lowerMsg.includes('failed to fetch') ||
+    lowerMsg.includes('networkerror') ||
+    lowerMsg.includes('network error') ||
+    lowerMsg.includes('load failed')
+  ) {
+    return "We couldn't reach the authentication service. Check your connection and try again.";
   }
-  return msg;
+
+  return rawMsg;
 }
 
 async function buildUserProfileFromSession(session: Session): Promise<UserProfile> {

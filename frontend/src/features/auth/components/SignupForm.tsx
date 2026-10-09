@@ -84,6 +84,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ className }) => {
   };
 
   const handleOAuth = async (provider: 'google' | 'github') => {
+    if (isLoading) return;
     setErrorMessage(null);
     setSuccessMessage(null);
     if (!agreedToTerms) {

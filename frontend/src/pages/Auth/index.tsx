@@ -7,7 +7,7 @@ export { AuthCallbackPage } from './AuthCallbackPage';
 
 export function LoginPage() {
   return (
-    <AuthPageContainer>
+    <AuthPageContainer enableFlicker={true}>
       <LoginForm />
     </AuthPageContainer>
   );
@@ -15,7 +15,7 @@ export function LoginPage() {
 
 export function SignupPage() {
   return (
-    <AuthPageContainer>
+    <AuthPageContainer enableFlicker={false}>
       <SignupForm />
     </AuthPageContainer>
   );
@@ -23,7 +23,7 @@ export function SignupPage() {
 
 export function ForgotPasswordPage() {
   return (
-    <AuthPageContainer>
+    <AuthPageContainer enableFlicker={false}>
       <RecoveryForm />
     </AuthPageContainer>
   );

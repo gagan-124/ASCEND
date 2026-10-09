@@ -54,6 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ className }) => {
   };
 
   const handleOAuth = async (provider: 'google' | 'github') => {
+    if (isLoading) return;
     setErrorMessage(null);
     setIsLoading(true);
     try {

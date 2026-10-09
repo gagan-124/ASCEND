@@ -18,6 +18,7 @@ export const RecoveryForm: React.FC<RecoveryFormProps> = ({ className }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     setErrorMessage(null);
     setSuccessMessage(null);
 

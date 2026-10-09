@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 export interface AuthPageContainerProps {
   children: React.ReactNode;
   className?: string;
+  enableFlicker?: boolean;
 }
 
 /**
@@ -15,17 +16,25 @@ export interface AuthPageContainerProps {
  * Features:
  * - Uses /components/ui/lamp.tsx LampContainer adapted for ASCEND (warm cream/amber palette, 0 cyan)
  * - LampContainer light engine sways in 100% sync with the hanging lamp
- * - Restrained 4-flicker electrical bulb startup
+ * - Route-aware: Restrained 4-flicker electrical bulb startup on Login, steady full illumination on Signup
  * - Card surface illumination & content reveal scales smoothly with light intensity
  * - Full prefers-reduced-motion fallback
  */
-export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({ children, className }) => {
+export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({
+  children,
+  className,
+  enableFlicker = true,
+}) => {
   const shouldReduceMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Light intensity state (0.05 = dim baseline, 1.0 = full warm illumination)
-  const [lightIntensity, setLightIntensity] = useState(0.05);
-  const [isInteractive, setIsInteractive] = useState(false);
+  const [lightIntensity, setLightIntensity] = useState(
+    enableFlicker && !shouldReduceMotion ? 0.05 : 1.0
+  );
+  const [isInteractive, setIsInteractive] = useState(
+    !enableFlicker || Boolean(shouldReduceMotion)
+  );
 
   // Physics swing refs & state
   const angleRef = useRef(0);
@@ -34,13 +43,16 @@ export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({ children, 
   const animFrameRef = useRef<number | null>(null);
   const lastMouseXRef = useRef<number | null>(null);
 
-  // 1. RESTRAINED FOUR FLICKERS TIMELINE (~1.85s total duration)
+  // 1. RESTRAINED FOUR FLICKERS TIMELINE (~1.85s total duration) - only when enableFlicker is true
   useEffect(() => {
-    if (shouldReduceMotion) {
+    if (shouldReduceMotion || !enableFlicker) {
       setLightIntensity(1.0);
       setIsInteractive(true);
       return;
     }
+
+    setLightIntensity(0.05);
+    setIsInteractive(false);
 
     const FLICKER_TIMELINE = [
       { time: 350, intensity: 0.25 },  // Flicker 1: subtle initial bulb warmth
@@ -69,7 +81,7 @@ export const AuthPageContainer: React.FC<AuthPageContainerProps> = ({ children, 
     return () => {
       timers.forEach((t) => clearTimeout(t));
     };
-  }, [shouldReduceMotion]);
+  }, [shouldReduceMotion, enableFlicker]);
 
   // 2. DAMPED PHYSICAL LAMP SWING SIMULATION
   const updatePhysics = useCallback(() => {
