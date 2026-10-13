@@ -3,6 +3,7 @@ export * from './hooks/useAudioMeter';
 export * from './hooks/useVoiceSynthesizer';
 export * from './hooks/useProctoring';
 export * from './hooks/useFaceDetection';
+export * from './hooks/useSpeechRecognition';
 
 export * from './components/PreFlightDeviceCheck';
 export * from './components/HumanFace';
@@ -22,4 +23,5 @@ export * from './components/InterviewTopBar';
 export * from './components/InterviewBottomControls';
 export * from './components/ProctoringFooter';
 export * from './components/InterviewInitOverlay';
+export * from './utils/answerSubmission';
 

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import type { InterviewSession, CreateInterviewPayload, SubmitAnswerPayload, TerminationReason } from '@/types/interview';
-import type { QuestionCategory, QuestionDifficulty } from '@/types/question';
+import { calculateSessionRecoveryState } from './sessionRecovery.ts';
 
 /**
  * Normalizes user-facing experience level to PostgreSQL check constraint:
@@ -56,16 +56,53 @@ export const interviewsApi = {
         difficulty: normalizedDiff,
         interviewType: normalizedType,
         questionCount: 3,
+        ...(payload.interviewId ? { interviewId: payload.interviewId } : {}),
       },
     });
 
     if (error) {
       console.error('[INTERVIEWS] Edge Function generation failed:', error);
-      const errorMessage =
+
+      let serverErrorMessage = '';
+      if (error && typeof error === 'object' && 'context' in error && error.context) {
+        try {
+          const res = error.context as Response;
+          const cloned = typeof res.clone === 'function' ? res.clone() : res;
+          const json = await cloned.json();
+          serverErrorMessage = json?.message || json?.error || '';
+        } catch {
+          try {
+            const res = error.context as Response;
+            serverErrorMessage = await res.text();
+          } catch {
+            // Safely ignore parse failure
+          }
+        }
+      }
+
+      const rawMsg =
+        serverErrorMessage ||
         (data as { message?: string })?.message ||
-        error.message ||
+        (error as { message?: string })?.message ||
+        (error instanceof Error ? error.message : String(error)) ||
         'Server failed to generate interview questions. Please try again.';
-      throw new Error(errorMessage);
+
+      let userFacingMessage = rawMsg;
+      if (typeof rawMsg === 'string') {
+        if (rawMsg.includes('non-2xx status code')) {
+          userFacingMessage =
+            'AI Interviewer service timed out or was temporarily unreachable. Please click "Retry Initialization" to connect.';
+        } else if (
+          rawMsg.includes('experiencing high demand') ||
+          rawMsg.includes('UNAVAILABLE') ||
+          rawMsg.includes('503')
+        ) {
+          userFacingMessage =
+            'The AI interviewer service is currently experiencing high demand. Please click "Retry Initialization" to reconnect.';
+        }
+      }
+
+      throw new Error(userFacingMessage);
     }
 
     const sessionData = (data as { session?: InterviewSession })?.session;
@@ -104,29 +141,18 @@ export const interviewsApi = {
       throw new Error(`Failed to load interview questions: ${qError.message}`);
     }
 
-    const currentState =
-      interview.status === 'cancelled'
-        ? 'TERMINATED'
-        : interview.status === 'completed'
-        ? 'COMPLETE'
-        : 'READY';
+    const recovery = calculateSessionRecoveryState(interview.status, questions);
 
     return {
       id: interview.id,
       userId: interview.user_id,
       roleTitle: interview.role,
       experienceLevel: interview.experience_level || 'mid',
-      currentState,
+      currentState: recovery.currentState,
       terminationReason: interview.status === 'cancelled' ? 'USER_ENDED' : undefined,
       startedAt: interview.started_at,
-      currentQuestionIndex: 0,
-      questions: (questions || []).map((q) => ({
-        id: q.id,
-        text: q.question,
-        category: (q.category as QuestionCategory) || 'technical',
-        difficulty: (q.difficulty as QuestionDifficulty) || 'medium',
-        timeLimitSeconds: q.time_limit_seconds || 180,
-      })),
+      currentQuestionIndex: recovery.currentQuestionIndex,
+      questions: recovery.mappedQuestions,
     };
   },
 
@@ -134,10 +160,23 @@ export const interviewsApi = {
    * Submits candidate response directly to public.interview_questions using column UPDATE permissions.
    */
   submitAnswer: async (_interviewId: string, payload: SubmitAnswerPayload): Promise<void> => {
+    const durationSec = Math.max(0, Math.floor(payload.durationSeconds || 0));
+    const timestamp = `${Math.floor(durationSec / 60)
+      .toString()
+      .padStart(2, '0')}:${(durationSec % 60).toString().padStart(2, '0')}`;
+
     const { error } = await supabase
       .from('interview_questions')
       .update({
         candidate_response: payload.transcriptText || null,
+        transcript_lines: [
+          {
+            speaker: 'candidate',
+            text: payload.transcriptText || '',
+            timestamp,
+            duration_seconds: durationSec,
+          },
+        ],
       })
       .eq('id', payload.questionId);
 
@@ -161,8 +200,9 @@ export const interviewsApi = {
   terminateSession: async (
     interviewId: string,
     reason: TerminationReason,
-    _useKeepalive: boolean = false
+    useKeepalive: boolean = false
   ): Promise<InterviewSession> => {
+    void useKeepalive;
     try {
       const { error } = await supabase.rpc('cancel_interview', {
         p_interview_id: interviewId,

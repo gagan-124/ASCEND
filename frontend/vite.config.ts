@@ -40,18 +40,20 @@ export default defineConfig({
               remaining = remaining.substring(idx + 1).trim();
             }
 
-            const buffers: Buffer[] = [];
-            for (const chunk of chunks) {
-              if (!chunk) continue;
+            const chunkPromises = chunks.filter(Boolean).map(async (chunk) => {
               const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(chunk)}&tl=en&client=tw-ob`;
               const ttsRes = await fetch(ttsUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
               });
               if (ttsRes.ok) {
                 const arrayBuffer = await ttsRes.arrayBuffer();
-                buffers.push(Buffer.from(arrayBuffer));
+                return Buffer.from(arrayBuffer);
               }
-            }
+              return null;
+            });
+
+            const resolvedBuffers = await Promise.all(chunkPromises);
+            const buffers = resolvedBuffers.filter((b): b is Buffer => b !== null);
 
             if (buffers.length === 0) {
               res.statusCode = 502;

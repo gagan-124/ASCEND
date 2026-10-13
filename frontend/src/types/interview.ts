@@ -33,6 +33,7 @@ export interface CreateInterviewPayload {
   focusArea?: string;
   jobDescription?: string;
   resumeId?: string;
+  interviewId?: string;
 }
 
 export interface SubmitAnswerPayload {

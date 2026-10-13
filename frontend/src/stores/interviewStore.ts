@@ -26,7 +26,7 @@ interface InterviewSessionState {
   currentQuestionIndex: number;
   setupConfig: InterviewSetupConfig;
   setSetupConfig: (config: Partial<InterviewSetupConfig>) => void;
-  setSession: (id: string, questions: Question[]) => void;
+  setSession: (id: string, questions: Question[], startIndex?: number) => void;
   setState: (state: InterviewState) => void;
   nextQuestion: () => void;
   resetSession: () => void;
@@ -67,13 +67,15 @@ export const useInterviewStore = create<InterviewSessionState>((set) => ({
   setupConfig: initialSetupConfig,
   setSetupConfig: (config) =>
     set((state) => ({ setupConfig: { ...state.setupConfig, ...config } })),
-  setSession: (id, questions) => {
+  setSession: (id, questions, startIndex = 0) => {
     try {
       sessionStorage.setItem(SESSION_STORAGE_KEY, id);
     } catch {
       // Safe ignore
     }
-    set({ sessionId: id, questions, currentQuestionIndex: 0, currentState: 'READY' });
+    const safeIndex =
+      questions.length > 0 ? Math.max(0, Math.min(startIndex, questions.length - 1)) : 0;
+    set({ sessionId: id, questions, currentQuestionIndex: safeIndex, currentState: 'READY' });
   },
   setState: (currentState) => set({ currentState }),
   nextQuestion: () => set((state) => ({ currentQuestionIndex: Math.min(state.currentQuestionIndex + 1, state.questions.length - 1) })),

@@ -19,6 +19,7 @@ export interface InterviewBottomControlsProps {
   roomState: InterviewState;
   audioLevel?: number;
   isSpeaking?: boolean;
+  isCandidateSpeaking?: boolean;
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onToggleChat: () => void;
@@ -33,6 +34,7 @@ export const InterviewBottomControls: React.FC<InterviewBottomControlsProps> = (
   roomState,
   audioLevel = 0,
   isSpeaking = false,
+  isCandidateSpeaking = false,
   onToggleMic,
   onToggleCamera,
   onToggleChat,
@@ -88,6 +90,7 @@ export const InterviewBottomControls: React.FC<InterviewBottomControlsProps> = (
         <VoicePoweredOrb
           voiceLevel={audioLevel}
           isSpeaking={isSpeaking}
+          isCandidateSpeaking={isCandidateSpeaking}
           state={roomState}
           size={72}
         />

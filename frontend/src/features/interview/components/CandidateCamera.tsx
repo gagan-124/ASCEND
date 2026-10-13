@@ -52,7 +52,7 @@ export const CandidateCamera: React.FC<CandidateCameraProps> = ({
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover transform -scale-x-100"
+          className="w-full h-full object-contain object-center transform -scale-x-100"
         />
       ) : (
         <div className="flex flex-col items-center justify-center p-4 text-center text-xs text-white/50 space-y-2">

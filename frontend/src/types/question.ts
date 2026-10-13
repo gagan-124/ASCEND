@@ -7,4 +7,6 @@ export interface Question {
   category: QuestionCategory;
   difficulty: QuestionDifficulty;
   timeLimitSeconds?: number;
+  candidateResponse?: string | null;
 }
+

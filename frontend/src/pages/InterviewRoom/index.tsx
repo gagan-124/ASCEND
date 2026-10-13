@@ -1,7 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, ShieldAlert, ArrowLeft, ArrowRight } from 'lucide-react';
+import {
+  AlertTriangle,
+  ShieldAlert,
+  ArrowLeft,
+  ArrowRight,
+  Volume2,
+  Loader2,
+  Mic,
+} from 'lucide-react';
 
 import { useInterviewStore } from '@/stores/interviewStore';
 import { interviewsApi } from '@/services/api/interviews';
@@ -22,6 +30,11 @@ import {
   useVoiceSynthesizer,
   useProctoring,
   useFaceDetection,
+  useSpeechRecognition,
+  AnswerSubmissionCoordinator,
+  createCandidateTranscriptEntry,
+  appendTranscriptEntryDedup,
+  stopAllInterviewMediaStreams,
 } from '@/features/interview';
 import { processRawEvaluationToResult, type TranscriptLine } from '@/features/results';
 import type { InterviewState } from '@/config/interviewConfig';
@@ -29,8 +42,26 @@ import type { InterviewState } from '@/config/interviewConfig';
 export function InterviewRoomPage() {
   const navigate = useNavigate();
 
-  const { setupConfig, sessionId, setSession, resetSession } =
-    useInterviewStore();
+  const {
+    setupConfig,
+    sessionId,
+    questions,
+    currentQuestionIndex,
+    setSession,
+    nextQuestion,
+    resetSession,
+  } = useInterviewStore();
+
+  const currentQuestion = questions[currentQuestionIndex] || null;
+  const [candidateLiveAnswer, setCandidateLiveAnswer] = useState('');
+  const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const submissionCoordinatorRef = useRef<AnswerSubmissionCoordinator | null>(null);
+  if (!submissionCoordinatorRef.current) {
+    submissionCoordinatorRef.current = new AnswerSubmissionCoordinator();
+  }
+  const isMountedRef = useRef(true);
+  const lastSpokenQuestionIdRef = useRef<string | null>(null);
 
   // Room State
   const [deviceCheckComplete, setDeviceCheckComplete] = useState<boolean>(Boolean(sessionId));
@@ -44,9 +75,18 @@ export function InterviewRoomPage() {
 
   // Audio & Media State
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const isMicMutedRef = useRef(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [candidateAudioLevel, setCandidateAudioLevel] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [questionElapsedSeconds, setQuestionElapsedSeconds] = useState(0);
+  const hasRecoveredRef = useRef(false);
+  const isTerminatedRef = useRef(false);
+  const pendingInterviewIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    isMicMutedRef.current = isMicMuted;
+  }, [isMicMuted]);
 
   // Transcript & Chat Data
   const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([
@@ -83,11 +123,30 @@ export function InterviewRoomPage() {
 
   // 3. TTS Hook
   const {
+    speak,
     stop: stopTTS,
     isSpeaking: isTtsSpeaking,
+    isBusy: isTtsBusy,
     audioLevel: ttsAudioLevel,
     resumeAudioContext,
   } = useVoiceSynthesizer();
+
+  // 4. Speech Recognition Hook for Candidate Oral Response
+  const {
+    isListening: isSpeechListening,
+    transcript: speechTranscript,
+    isSupported: isSpeechSupported,
+    startListening: startSpeechRecognition,
+    stopListening: stopSpeechRecognition,
+    resetTranscript: resetSpeechTranscript,
+  } = useSpeechRecognition({
+    continuous: true,
+    interimResults: true,
+    onResult: (latestTranscript) => {
+      resetCandidateInactivity();
+      setCandidateLiveAnswer(latestTranscript);
+    },
+  });
 
   // Candidate Mic VAD indicator: candidate is speaking when candidate mic level > 8
   const isCandidateSpeaking = candidateAudioLevel > 8 && !isMicMuted;
@@ -96,11 +155,44 @@ export function InterviewRoomPage() {
   const stopCandidateMedia = useCallback(() => {
     console.log('[ASCEND Media Lifecycle] Executing complete media cleanup: stopping all tracks and audio.');
     stopTTS();
+    stopSpeechRecognition();
     stopTracks();
+    stopAllInterviewMediaStreams();
+    if (candidateVideoRef.current) {
+      candidateVideoRef.current.srcObject = null;
+    }
     setCandidateAudioLevel(0);
-  }, [stopTTS, stopTracks]);
+  }, [stopTTS, stopSpeechRecognition, stopTracks]);
 
-  // 4. Proctoring & Session Management Hook
+  const handleViewResults = useCallback(async () => {
+    stopCandidateMedia();
+    const targetId = sessionId || 'int-2026-0918-78a';
+
+    const mappedTranscript: TranscriptLine[] = transcriptEntries.map((t) => ({
+      id: t.id,
+      speaker:
+        t.speaker === 'ai' || t.speakerName?.toLowerCase().includes('ira') ? 'IRA' : 'CANDIDATE',
+      speakerName: t.speakerName,
+      text: t.text,
+      timestamp: t.timestamp,
+    }));
+
+    await processRawEvaluationToResult({
+      sessionId: targetId,
+      roleTitle: setupConfig.selectedRoleTitle || 'SOFTWARE ENGINEER',
+      experienceLevel: setupConfig.experienceLevel || 'Mid',
+      rawAnswers: [],
+      transcript: mappedTranscript,
+    });
+
+    resetSession();
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+    navigate(`/results/${targetId}`);
+  }, [sessionId, transcriptEntries, setupConfig, stopCandidateMedia, resetSession, navigate]);
+
+  // 5. Proctoring & Session Management Hook
   const {
     isTerminated,
     terminationReason,
@@ -133,6 +225,7 @@ export function InterviewRoomPage() {
 
   // Track termination and clean up tracks strictly on unmount
   useEffect(() => {
+    isTerminatedRef.current = isTerminated;
     if (isTerminated) {
       stopCandidateMedia();
     }
@@ -140,23 +233,128 @@ export function InterviewRoomPage() {
 
   useEffect(() => {
     return () => {
+      isMountedRef.current = false;
       stopCandidateMedia();
     };
   }, [stopCandidateMedia]);
 
-  // Authoritative Backend Session Validation on Mount
+  // Authoritative Backend Session Validation & Refresh Recovery on Mount
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || hasRecoveredRef.current) return;
+    hasRecoveredRef.current = true;
+
     interviewsApi
       .getSession(sessionId)
       .then((session) => {
-        if (session && session.currentState === 'TERMINATED') {
+        if (!session) return;
+        if (session.currentState === 'TERMINATED') {
           stopCandidateMedia();
           handleTerminate(session.terminationReason || 'PAGE_RELOAD');
+        } else if (session.currentState === 'COMPLETE') {
+          stopCandidateMedia();
+          handleViewResults();
+        } else if (session.questions && session.questions.length > 0) {
+          // Restore questions and resume at the first unanswered question
+          setSession(session.id, session.questions, session.currentQuestionIndex);
+
+          // Populate transcript history from already persisted answers
+          const historicalEntries: TranscriptEntry[] = [];
+          session.questions.forEach((q, idx) => {
+            if (q.candidateResponse && q.candidateResponse.trim().length > 0) {
+              historicalEntries.push({
+                id: `hist-q-${q.id}`,
+                speaker: 'ai',
+                speakerName: 'Interviewer (IRA)',
+                text: `Question ${idx + 1} (${q.category.toUpperCase()}): ${q.text}`,
+                timestamp: 'Saved',
+              });
+              historicalEntries.push({
+                id: `hist-ans-${q.id}`,
+                speaker: 'candidate',
+                speakerName: 'You',
+                text: q.candidateResponse,
+                timestamp: 'Saved',
+              });
+            }
+          });
+
+          if (historicalEntries.length > 0) {
+            setTranscriptEntries((prev) => {
+              const existingIds = new Set(prev.map((e) => e.id));
+              const newEntries = historicalEntries.filter((e) => !existingIds.has(e.id));
+              return [...prev, ...newEntries];
+            });
+          }
         }
       })
-      .catch(() => {});
-  }, [sessionId, stopCandidateMedia, handleTerminate]);
+      .catch((err) => {
+        console.error('[InterviewRoom] Session recovery error:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes('not found') || msg.includes('P0002')) {
+          resetSession();
+          setDeviceCheckComplete(false);
+          setInitError('Previous interview session not found. Please start a new interview.');
+        }
+      });
+  }, [sessionId, setSession, stopCandidateMedia, handleTerminate, handleViewResults, resetSession]);
+
+  // Question Vocalization & Speech Capture Lifecycle
+  useEffect(() => {
+    if (!deviceCheckComplete || !currentQuestion || isTerminated) return;
+    if (lastSpokenQuestionIdRef.current === currentQuestion.id) return;
+
+    const questionId = currentQuestion.id;
+    lastSpokenQuestionIdRef.current = questionId;
+    submissionCoordinatorRef.current?.reset();
+    setSubmissionError(null);
+    setCandidateLiveAnswer('');
+    resetSpeechTranscript();
+    setQuestionElapsedSeconds(0);
+
+    // 1. Explicitly stop active speech recognition BEFORE question playback starts
+    stopSpeechRecognition();
+
+    // 2. Append to transcript panel
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setTranscriptEntries((prev) => {
+      const qEntryId = `tx-q-${questionId}`;
+      if (prev.some((e) => e.id === qEntryId)) return prev;
+      return [
+        ...prev,
+        {
+          id: qEntryId,
+          speaker: 'ai',
+          speakerName: 'Interviewer (IRA)',
+          text: `Question ${currentQuestionIndex + 1} (${currentQuestion.category.toUpperCase()}): ${currentQuestion.text}`,
+          timestamp,
+        },
+      ];
+    });
+
+    // 3. Play question audio and start speech recognition ONLY after playback completes
+    speak(currentQuestion.text, () => {
+      // Guard 1: Verify callback belongs to this active question
+      if (lastSpokenQuestionIdRef.current !== questionId) return;
+      // Guard 2: Verify session is not terminated
+      if (isTerminatedRef.current) return;
+      // Guard 3: Authoritative check on current mic mute state (prevents unmute if candidate muted while AI was speaking)
+      if (isMicMutedRef.current) return;
+      // Guard 4: Verify speech recognition availability
+      if (isSpeechSupported) {
+        startSpeechRecognition();
+      }
+    });
+  }, [
+    deviceCheckComplete,
+    currentQuestion,
+    currentQuestionIndex,
+    isTerminated,
+    isSpeechSupported,
+    speak,
+    stopSpeechRecognition,
+    startSpeechRecognition,
+    resetSpeechTranscript,
+  ]);
 
   // Request media if not already established
   useEffect(() => {
@@ -169,14 +367,17 @@ export function InterviewRoomPage() {
     }
   }, [deviceCheckComplete, candidateStream, isCameraOff, isTerminated, roomState, requestCandidateMedia, stopCandidateMedia]);
 
-  // Session Timer
+  // Session & Question Timing (paused when proctoring media is paused or terminated)
   useEffect(() => {
-    if (!deviceCheckComplete || isTerminated) return;
+    if (!deviceCheckComplete || isTerminated || isMediaPaused || roomState === 'MEDIA_PAUSED') {
+      return;
+    }
     const timerInterval = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
+      setQuestionElapsedSeconds((prev) => prev + 1);
     }, 1000);
     return () => clearInterval(timerInterval);
-  }, [deviceCheckComplete, isTerminated]);
+  }, [deviceCheckComplete, isTerminated, isMediaPaused, roomState]);
 
   // Candidate Mic VAD Analyser
   useEffect(() => {
@@ -187,19 +388,24 @@ export function InterviewRoomPage() {
 
     let animFrame: number;
     let audioCtx: AudioContext;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let analyser: AnalyserNode | null = null;
 
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       audioCtx = new AudioCtx();
-      const analyser = audioCtx.createAnalyser();
+      analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256;
 
-      const source = audioCtx.createMediaStreamSource(candidateStream);
+      source = audioCtx.createMediaStreamSource(candidateStream);
       source.connect(analyser);
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let lastUpdate = 0;
+      let lastLevel = 0;
 
-      const updateLevel = () => {
+      const updateLevel = (timestamp: number) => {
+        if (!analyser) return;
         analyser.getByteFrequencyData(dataArray);
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
@@ -207,7 +413,13 @@ export function InterviewRoomPage() {
         }
         const avg = sum / dataArray.length;
         const level = Math.min(100, Math.round((avg / 128) * 100));
-        setCandidateAudioLevel(level);
+
+        // Throttle React state updates to 40ms to avoid unnecessary re-renders while preserving smooth visual reaction
+        if (timestamp - lastUpdate > 40 || Math.abs(level - lastLevel) > 8) {
+          lastUpdate = timestamp;
+          lastLevel = level;
+          setCandidateAudioLevel(level);
+        }
 
         if (level > 8) {
           resetCandidateInactivity();
@@ -216,13 +428,27 @@ export function InterviewRoomPage() {
         animFrame = requestAnimationFrame(updateLevel);
       };
 
-      updateLevel();
+      animFrame = requestAnimationFrame(updateLevel);
     } catch {
       // Safe to ignore if candidate mic AudioContext cannot be initialized
     }
 
     return () => {
       if (animFrame) cancelAnimationFrame(animFrame);
+      if (source) {
+        try {
+          source.disconnect();
+        } catch {
+          // Safe ignore
+        }
+      }
+      if (analyser) {
+        try {
+          analyser.disconnect();
+        } catch {
+          // Safe ignore
+        }
+      }
       if (audioCtx && audioCtx.state !== 'closed') audioCtx.close().catch(() => {});
     };
   }, [candidateStream, isMicMuted, isTerminated, resetCandidateInactivity]);
@@ -287,9 +513,11 @@ export function InterviewRoomPage() {
         focusArea: setupConfig.focusArea,
         jobDescription: setupConfig.jobDescription || undefined,
         resumeId: setupConfig.resumeId || undefined,
+        interviewId: pendingInterviewIdRef.current || undefined,
       };
 
       const session = await interviewsApi.createSession(payload);
+      pendingInterviewIdRef.current = session.id;
       setSession(session.id, session.questions);
 
       setInitStep('ready');
@@ -307,6 +535,9 @@ export function InterviewRoomPage() {
   };
 
   const handleDeviceCheckCancel = () => {
+    pendingInterviewIdRef.current = null;
+    setInitError(null);
+    setInitStep(null);
     stopCandidateMedia();
     if (window.history.length > 1) {
       navigate(-1);
@@ -320,11 +551,103 @@ export function InterviewRoomPage() {
   // Hardware Toggles
   const handleToggleMic = () => {
     resetCandidateInactivity();
+    const nextMuted = !isMicMutedRef.current;
     if (candidateStream && candidateStream.getAudioTracks().length > 0) {
       const track = candidateStream.getAudioTracks()[0];
-      track.enabled = isMicMuted;
+      track.enabled = !nextMuted;
     }
-    setIsMicMuted((prev) => !prev);
+    setIsMicMuted(nextMuted);
+    isMicMutedRef.current = nextMuted;
+    if (nextMuted) {
+      stopSpeechRecognition();
+    } else if (isSpeechSupported && deviceCheckComplete && !isTerminated && !isTtsBusy) {
+      startSpeechRecognition();
+    }
+  };
+
+  const handleReplayQuestion = () => {
+    if (!currentQuestion || isTtsBusy) return;
+    const questionId = currentQuestion.id;
+    stopSpeechRecognition();
+    speak(currentQuestion.text, () => {
+      if (lastSpokenQuestionIdRef.current !== questionId) return;
+      if (isTerminatedRef.current || isMicMutedRef.current) return;
+      if (isSpeechSupported) {
+        startSpeechRecognition();
+      }
+    });
+  };
+
+  const handleNextQuestion = async () => {
+    const coordinator = submissionCoordinatorRef.current!;
+    if (!coordinator.startSubmission()) {
+      console.warn('[InterviewRoom] Concurrent answer submission prevented.');
+      return;
+    }
+    setIsSubmittingAnswer(true);
+
+    try {
+      stopTTS();
+
+      // Only flush speech if no answer is already retained from a failed submission
+      let flushedTranscript = '';
+      if (!coordinator.getRetainedAnswer()) {
+        flushedTranscript = stopSpeechRecognition();
+      }
+
+      const { answer: finalAnswer, duration: durationToPersist } = coordinator.prepareAnswer({
+        flushedSpeech: flushedTranscript,
+        candidateLiveAnswer,
+        speechTranscript,
+        questionElapsedSeconds,
+      });
+
+      if (sessionId && currentQuestion) {
+        await interviewsApi.submitAnswer(sessionId, {
+          questionId: currentQuestion.id,
+          transcriptText: finalAnswer,
+          durationSeconds: durationToPersist,
+        });
+      }
+
+      // Persistence confirmed: release coordinator lock & retained state
+      coordinator.handleSuccess();
+      if (isMountedRef.current) {
+        setSubmissionError(null);
+      }
+
+      // Authoritative transcript bubble appended ONLY after persistence succeeds
+      const entry = createCandidateTranscriptEntry(
+        currentQuestion?.id || String(Date.now()),
+        finalAnswer
+      );
+      setTranscriptEntries((prev) => appendTranscriptEntryDedup(prev, entry));
+
+      // Reset speech & timing state only after successful persistence
+      setCandidateLiveAnswer('');
+      resetSpeechTranscript();
+      setQuestionElapsedSeconds(0);
+
+      if (currentQuestionIndex < questions.length - 1) {
+        nextQuestion();
+      } else {
+        await handleViewResults();
+      }
+    } catch (err) {
+      console.error('[InterviewRoom] Error submitting answer:', err);
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : 'Failed to submit answer. Please check your connection and retry.';
+      coordinator.handleFailure(errorMsg);
+      if (isMountedRef.current) {
+        setSubmissionError(errorMsg);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmittingAnswer(false);
+      }
+    }
   };
 
   const handleToggleCamera = () => {
@@ -372,32 +695,6 @@ export function InterviewRoomPage() {
     }
   };
 
-  const handleViewResults = async () => {
-    stopCandidateMedia();
-    const targetId = sessionId || 'int-2026-0918-78a';
-
-    const mappedTranscript: TranscriptLine[] = transcriptEntries.map((t) => ({
-      id: t.id,
-      speaker: t.speaker === 'ai' || t.speakerName?.toLowerCase().includes('ira') ? 'IRA' : 'CANDIDATE',
-      speakerName: t.speakerName,
-      text: t.text,
-      timestamp: t.timestamp,
-    }));
-
-    await processRawEvaluationToResult({
-      sessionId: targetId,
-      roleTitle: setupConfig.selectedRoleTitle || 'SOFTWARE ENGINEER',
-      experienceLevel: setupConfig.experienceLevel || 'Mid',
-      rawAnswers: [],
-      transcript: mappedTranscript,
-    });
-
-    resetSession();
-    if (document.fullscreenElement && document.exitFullscreen) {
-      document.exitFullscreen().catch(() => {});
-    }
-    navigate(`/results/${targetId}`);
-  };
 
   const handleReturnToDashboard = () => {
     stopCandidateMedia();
@@ -410,22 +707,27 @@ export function InterviewRoomPage() {
 
   // 1. Pre-Flight Device Check Screen or Interview Initialization
   if (!deviceCheckComplete && !sessionId) {
-    return (
-      <div className="fixed inset-0 w-[100vw] h-[100dvh] min-h-[100dvh] bg-[#07090e] flex flex-col items-center justify-center p-4 sm:p-6 text-foreground overflow-hidden z-50">
-        {initStep ? (
+    if (initStep) {
+      return (
+        <div className="fixed inset-0 w-[100vw] h-[100dvh] min-h-[100dvh] bg-[#07090e] flex flex-col items-center justify-center p-4 sm:p-6 text-foreground overflow-hidden z-50">
           <InterviewInitOverlay
             step={initStep}
             roleTitle={setupConfig.selectedRoleTitle || 'Mock Interview'}
             error={initError}
             onRetry={handleDeviceCheckComplete}
-          />
-        ) : (
-          <PreFlightDeviceCheck
-            media={media}
-            onComplete={handleDeviceCheckComplete}
             onCancel={handleDeviceCheckCancel}
           />
-        )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="fixed inset-0 w-[100vw] h-[100dvh] min-h-[100dvh] bg-[#07090e] text-foreground overflow-hidden z-50">
+        <PreFlightDeviceCheck
+          media={media}
+          onComplete={handleDeviceCheckComplete}
+          onCancel={handleDeviceCheckCancel}
+        />
       </div>
     );
   }
@@ -442,6 +744,92 @@ export function InterviewRoomPage() {
 
       {/* CENTER INTERVIEW WORKSPACE (Split Video & Information Grid) */}
       <main className="flex-1 min-h-0 px-4 py-2 flex flex-col gap-3 max-w-[1700px] mx-auto w-full">
+        {/* ACTIVE QUESTION BANNER */}
+        {currentQuestion && (
+          <div className="w-full bg-[#0d1219]/95 border border-cyan-500/30 backdrop-blur-md rounded-2xl p-3 sm:p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shrink-0 shadow-xl">
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-[11px] font-bold uppercase tracking-wider">
+                  Question {currentQuestionIndex + 1} of {questions.length}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/70 font-mono text-[11px] uppercase">
+                  {currentQuestion.category}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 text-white/70 font-mono text-[11px] uppercase">
+                  {currentQuestion.difficulty}
+                </span>
+                {isSpeechListening && (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] flex items-center gap-1 animate-pulse">
+                    <Mic className="w-3 h-3" />
+                    <span>Listening</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-white text-xs sm:text-sm font-medium leading-relaxed">
+                {currentQuestion.text}
+              </p>
+              {(candidateLiveAnswer || speechTranscript) && (
+                <div className="pt-1 text-[11px] text-white/60 font-sans italic line-clamp-1">
+                  <span className="font-semibold text-cyan-400 not-italic mr-1">Your answer:</span>
+                  {candidateLiveAnswer || speechTranscript}
+                </div>
+              )}
+              {submissionError && (
+                <div className="pt-1.5 flex items-center gap-1.5 text-rose-400 text-xs font-mono">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span className="font-semibold">Submission failed:</span>
+                  <span>{submissionError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+              <button
+                type="button"
+                onClick={handleReplayQuestion}
+                disabled={isTtsBusy}
+                className="h-9 px-3 rounded-xl border border-white/10 hover:bg-white/5 text-white/80 hover:text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                title="Replay question audio"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Replay</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextQuestion}
+                disabled={isSubmittingAnswer}
+                className={
+                  submissionError
+                    ? 'h-9 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50'
+                    : 'h-9 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50'
+                }
+              >
+                {isSubmittingAnswer ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : submissionError ? (
+                  <>
+                    <span>Retry Submission</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {currentQuestionIndex < questions.length - 1
+                        ? 'Next Question'
+                        : 'Finish Interview'}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* TOP ROW: Video Feeds (Interviewer on Left, Candidate on Right) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 flex-[1.3] min-h-0">
           <AIInterviewer
@@ -478,8 +866,9 @@ export function InterviewRoomPage() {
         isCameraOff={isCameraOff}
         isChatOpen={isChatOpen}
         roomState={roomState}
-        audioLevel={isCandidateSpeaking ? candidateAudioLevel : ttsAudioLevel}
+        audioLevel={isTtsSpeaking ? ttsAudioLevel : (!isMicMuted ? candidateAudioLevel : 0)}
         isSpeaking={isTtsSpeaking}
+        isCandidateSpeaking={!isTtsSpeaking && !isMicMuted && candidateAudioLevel > 6}
         onToggleMic={handleToggleMic}
         onToggleCamera={handleToggleCamera}
         onToggleChat={() => setIsChatOpen((prev) => !prev)}

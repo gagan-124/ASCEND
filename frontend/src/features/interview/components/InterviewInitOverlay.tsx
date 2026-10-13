@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Cpu, Mic, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Cpu, Mic, CheckCircle2, AlertTriangle, RefreshCw, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type InterviewInitStep = 'environment' | 'session' | 'media' | 'ready';
@@ -18,6 +18,7 @@ export interface InterviewInitOverlayProps {
   roleTitle?: string;
   error?: string | null;
   onRetry?: () => void;
+  onCancel?: () => void;
 }
 
 const STEPS: InitStep[] = [
@@ -53,9 +54,11 @@ export const InterviewInitOverlay: React.FC<InterviewInitOverlayProps> = ({
   roleTitle = 'SOFTWARE ENGINEER',
   error,
   onRetry,
+  onCancel,
 }) => {
   const activeStep = step || currentStep || 'environment';
   const currentStepIndex = STEPS.findIndex((s) => s.id === activeStep);
+  const hasError = Boolean(error && error.trim().length > 0);
 
   return (
     <div
@@ -75,19 +78,43 @@ export const InterviewInitOverlay: React.FC<InterviewInitOverlayProps> = ({
           </h2>
         </div>
 
-        {/* Error Banner */}
-        {error && (
-          <div className="p-3.5 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs space-y-2">
-            <p>{error}</p>
-            {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className="px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground font-mono text-[11px] font-bold uppercase tracking-wider hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Retry Initialization
-              </button>
-            )}
+        {/* Error Banner - Guaranteed non-empty, actionable card */}
+        {hasError && (
+          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs space-y-3 shadow-lg animate-in fade-in duration-200">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className="space-y-1 flex-1">
+                <h3 className="font-mono font-bold text-xs uppercase tracking-wider text-rose-300">
+                  Initialization Interrupted
+                </h3>
+                <p className="text-[12px] text-rose-200/90 leading-relaxed font-sans">
+                  {error?.trim() || 'The AI interviewer service timed out or was temporarily unreachable. Please retry.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-mono text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm cursor-pointer flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Retry Initialization</span>
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-3 py-1.5 rounded-lg border border-rose-500/30 hover:bg-rose-500/10 text-rose-300 font-mono text-[11px] font-medium transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Cancel</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 

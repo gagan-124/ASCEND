@@ -13,6 +13,32 @@ export interface UserMediaState {
   selectedMicId: string;
 }
 
+/**
+ * Global active interview media stream registry.
+ * Guarantees that any stream acquired across hooks can be forcibly stopped
+ * on terminal events (navigation back, cancel, unmount, or session termination).
+ */
+const activeInterviewStreams = new Set<MediaStream>();
+
+export function stopAllInterviewMediaStreams(): void {
+  activeInterviewStreams.forEach((mediaStream) => {
+    try {
+      mediaStream.getTracks().forEach((track) => {
+        try {
+          track.onmute = null;
+          track.onunmute = null;
+          track.stop();
+        } catch (e) {
+          console.error(`[MEDIA] Error stopping track ${track.id}:`, e);
+        }
+      });
+    } catch {
+      // Safe to ignore
+    }
+  });
+  activeInterviewStreams.clear();
+}
+
 export function useUserMedia() {
   const [state, setState] = useState<UserMediaState>({
     stream: null,
@@ -28,11 +54,18 @@ export function useUserMedia() {
   });
 
   const streamRef = useRef<MediaStream | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const isMountedRef = useRef<boolean>(true);
+  const isCancelledRef = useRef<boolean>(false);
 
   const stopTracks = useCallback(() => {
+    isCancelledRef.current = true;
+    requestIdRef.current += 1;
+
     const tracksToStop: MediaStreamTrack[] = [];
 
     if (streamRef.current) {
+      activeInterviewStreams.delete(streamRef.current);
       streamRef.current.getTracks().forEach((track) => {
         tracksToStop.push(track);
       });
@@ -51,6 +84,7 @@ export function useUserMedia() {
 
     setState((prev) => {
       if (prev.stream) {
+        activeInterviewStreams.delete(prev.stream);
         prev.stream.getTracks().forEach((track) => {
           if (!tracksToStop.includes(track)) {
             try {
@@ -69,6 +103,7 @@ export function useUserMedia() {
         cameraGranted: false,
         micGranted: false,
         isMicHardwareMuted: false,
+        isLoading: false,
       };
     });
   }, []);
@@ -77,6 +112,7 @@ export function useUserMedia() {
     if (!navigator.mediaDevices?.enumerateDevices) return;
     try {
       const deviceInfos = await navigator.mediaDevices.enumerateDevices();
+      if (!isMountedRef.current) return;
       setState((prev) => ({
         ...prev,
         devices: deviceInfos,
@@ -88,10 +124,16 @@ export function useUserMedia() {
 
   const requestMedia = useCallback(
     async (cameraId?: string, micId?: string) => {
+      if (!isMountedRef.current) return;
+
       stopTracks();
+      isCancelledRef.current = false;
+      const currentRequestId = ++requestIdRef.current;
+
       setState((prev) => ({ ...prev, isLoading: true, cameraError: null, micError: null }));
 
       if (!navigator.mediaDevices?.getUserMedia) {
+        if (!isMountedRef.current || currentRequestId !== requestIdRef.current) return;
         setState((prev) => ({
           ...prev,
           isLoading: false,
@@ -101,9 +143,13 @@ export function useUserMedia() {
         return;
       }
 
-      const videoConstraints: MediaTrackConstraints | boolean = cameraId
-        ? { deviceId: { exact: cameraId } }
-        : true;
+      const videoConstraints: MediaTrackConstraints = {
+        ...(cameraId ? { deviceId: { exact: cameraId } } : {}),
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        aspectRatio: { ideal: 16 / 9 },
+        facingMode: 'user',
+      };
       const audioConstraints: MediaTrackConstraints | boolean = micId
         ? {
             deviceId: { exact: micId },
@@ -118,11 +164,41 @@ export function useUserMedia() {
           };
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: audioConstraints,
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints,
+            audio: audioConstraints,
+          });
+        } catch (firstErr: unknown) {
+          const firstMediaErr = firstErr as { name?: string };
+          if (firstMediaErr?.name === 'OverconstrainedError') {
+            console.warn('[MEDIA] OverconstrainedError on ideal constraints. Falling back to basic device constraints.');
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: cameraId ? { deviceId: { exact: cameraId } } : true,
+              audio: audioConstraints,
+            });
+          } else {
+            throw firstErr;
+          }
+        }
 
+        // CRITICAL GUARD: Stop tracks immediately if unmounted, cancelled, or superseded during await
+        if (!isMountedRef.current || isCancelledRef.current || currentRequestId !== requestIdRef.current) {
+          console.warn('[MEDIA] Late getUserMedia resolved after cancellation, unmount, or newer request. Stopping all tracks immediately.');
+          stream.getTracks().forEach((track) => {
+            try {
+              track.onmute = null;
+              track.onunmute = null;
+              track.stop();
+            } catch {
+              // Safe ignore
+            }
+          });
+          return;
+        }
+
+        activeInterviewStreams.add(stream);
         streamRef.current = stream;
 
         const hasVideo = stream.getVideoTracks().length > 0;
@@ -131,14 +207,51 @@ export function useUserMedia() {
         const videoTrack = stream.getVideoTracks()[0];
         const audioTrack = stream.getAudioTracks()[0];
 
+        // Inspect track capabilities for hardware zoom and set to widest angle (minimum zoom) if supported
+        if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
+          try {
+            const capabilities = videoTrack.getCapabilities() as { zoom?: { min?: number } };
+            if (capabilities && capabilities.zoom && typeof capabilities.zoom.min === 'number') {
+              if (typeof videoTrack.applyConstraints === 'function') {
+                await videoTrack.applyConstraints({
+                  advanced: [{ zoom: capabilities.zoom.min } as MediaTrackConstraintSet],
+                });
+              }
+            }
+          } catch {
+            // Hardware PTZ zoom constraint is best-effort; safe to continue
+          }
+        }
+
+        // Secondary check after zoom constraint promise
+        if (!isMountedRef.current || isCancelledRef.current || currentRequestId !== requestIdRef.current) {
+          console.warn('[MEDIA] Stream invalidated during post-acquisition configuration. Stopping tracks.');
+          activeInterviewStreams.delete(stream);
+          stream.getTracks().forEach((track) => {
+            try {
+              track.onmute = null;
+              track.onunmute = null;
+              track.stop();
+            } catch {
+              // Safe ignore
+            }
+          });
+          streamRef.current = null;
+          return;
+        }
+
         if (audioTrack) {
           audioTrack.onmute = () => {
             console.log('[MEDIA] Audio track onmute event fired (hardware/system muted)');
-            setState((prev) => ({ ...prev, isMicHardwareMuted: true }));
+            if (isMountedRef.current) {
+              setState((prev) => ({ ...prev, isMicHardwareMuted: true }));
+            }
           };
           audioTrack.onunmute = () => {
             console.log('[MEDIA] Audio track onunmute event fired (hardware unmuted)');
-            setState((prev) => ({ ...prev, isMicHardwareMuted: false }));
+            if (isMountedRef.current) {
+              setState((prev) => ({ ...prev, isMicHardwareMuted: false }));
+            }
           };
         }
 
@@ -157,6 +270,8 @@ export function useUserMedia() {
 
         await enumerateDevices();
       } catch (err: unknown) {
+        if (!isMountedRef.current || currentRequestId !== requestIdRef.current) return;
+
         const mediaErr = err as { name?: string; message?: string } | null;
         console.error('[MEDIA] getUserMedia failed. Error name:', mediaErr?.name, 'message:', mediaErr?.message);
         stopTracks();
@@ -200,7 +315,11 @@ export function useUserMedia() {
   );
 
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
+      isCancelledRef.current = true;
+      requestIdRef.current += 1;
       stopTracks();
     };
   }, [stopTracks]);
