@@ -41,8 +41,16 @@ async function executeGeminiFallbackOrchestration({
           lastAiError = 'AI service authentication error. Please verify API configuration.';
           break; // Permanent failure: do not hammer remaining models
         }
+        if (res.status === 400) {
+          lastAiError = `Invalid generation request format or parameters for model ${model} (HTTP 400)`;
+          break; // Bad request error: do not blindly retry other models
+        }
         if (res.status === 404) {
           lastAiError = `Model ${model} not supported by upstream API (HTTP 404)`;
+          continue;
+        }
+        if (res.status === 429) {
+          lastAiError = `Model ${model} rate limited (HTTP 429)`;
           continue;
         }
         lastAiError = `Model ${model} unavailable (HTTP ${res.status})`;
@@ -114,21 +122,21 @@ async function executeGeminiFallbackOrchestration({
 
 test('Gemini Fallback & Availability Hardening', async (t) => {
   const standardCandidateModels = [
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-pro',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
   ];
 
   await t.test('1. Gemini 503 on primary model triggers successful fallback to secondary model', async () => {
     const fetchMock = async (model) => {
-      if (model === 'gemini-2.5-flash') {
+      if (model === 'gemini-3.5-flash-lite') {
         return {
           ok: false,
           status: 503,
           text: async () => '{"error": {"code": 503, "message": "This model is currently experiencing high demand.", "status": "UNAVAILABLE"}}',
         };
       }
-      if (model === 'gemini-2.5-flash-lite') {
+      if (model === 'gemini-3.1-flash-lite') {
         return {
           ok: true,
           status: 200,
@@ -166,13 +174,13 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
 
     assert.equal(result.success, true);
     assert.equal(result.questions.length, 1);
-    assert.deepEqual(result.attemptsLog, ['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+    assert.deepEqual(result.attemptsLog, ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']);
     assert.equal(result.questions[0].category, 'technical');
   });
 
   await t.test('2. Gemini 429 rate limit on primary model triggers successful fallback', async () => {
     const fetchMock = async (model) => {
-      if (model === 'gemini-2.5-flash') {
+      if (model === 'gemini-3.5-flash-lite') {
         return {
           ok: false,
           status: 429,
@@ -213,13 +221,13 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
     });
 
     assert.equal(result.success, true);
-    assert.equal(result.attemptsLog[0], 'gemini-2.5-flash');
-    assert.equal(result.attemptsLog[1], 'gemini-2.5-flash-lite');
+    assert.equal(result.attemptsLog[0], 'gemini-3.5-flash-lite');
+    assert.equal(result.attemptsLog[1], 'gemini-3.1-flash-lite');
   });
 
   await t.test('3. Timeout on primary attempt triggers fallback to next model', async () => {
     const fetchMock = async (model) => {
-      if (model === 'gemini-2.5-flash') {
+      if (model === 'gemini-3.5-flash-lite') {
         const timeoutErr = new Error('The operation was aborted due to timeout');
         timeoutErr.name = 'TimeoutError';
         throw timeoutErr;
@@ -258,7 +266,7 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
     });
 
     assert.equal(result.success, true);
-    assert.deepEqual(result.attemptsLog, ['gemini-2.5-flash', 'gemini-2.5-flash-lite']);
+    assert.deepEqual(result.attemptsLog, ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']);
   });
 
   await t.test('4. All models unavailable returns structured error without silent mock fallback', async () => {
@@ -298,7 +306,7 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
   });
 
   await t.test('6. Unsupported 404 model identifier is skipped to next candidate', async () => {
-    const candidateWithInvalid = ['gemini-invalid-model-name', 'gemini-2.5-flash-lite'];
+    const candidateWithInvalid = ['gemini-invalid-model-name', 'gemini-3.5-flash-lite'];
     const fetchMock = async (model) => {
       if (model === 'gemini-invalid-model-name') {
         return {
@@ -341,7 +349,7 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
     });
 
     assert.equal(result.success, true);
-    assert.deepEqual(result.attemptsLog, ['gemini-invalid-model-name', 'gemini-2.5-flash-lite']);
+    assert.deepEqual(result.attemptsLog, ['gemini-invalid-model-name', 'gemini-3.5-flash-lite']);
   });
 
   await t.test('7. Malformed questions and incomplete structures are rejected and skipped', async () => {
@@ -488,6 +496,9 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
       'gemini-1.5-pro',
       'gemini-2.0-flash',
       'gemini-1.0-pro',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.5-pro',
     ];
 
     // Confirm that retired identifiers are excluded from candidate models
@@ -515,11 +526,11 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
       fetchFn: fetchMock,
     });
 
-    // Exact order must be: Primary (gemini-2.5-flash) -> Fallback 1 (gemini-2.5-flash-lite) -> Fallback 2 (gemini-2.5-pro)
+    // Exact order must be: Primary (gemini-3.5-flash-lite) -> Fallback 1 (gemini-3.1-flash-lite) -> Fallback 2 (gemini-3.8-flash)
     assert.deepEqual(callSequence, [
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
-      'gemini-2.5-pro',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+      'gemini-3.8-flash',
     ]);
 
     // Ensure none of the attempted models were in the retired list
@@ -530,5 +541,28 @@ test('Gemini Fallback & Availability Hardening', async (t) => {
         `Attempted model ${attempted} must not be a retired identifier`
       );
     }
+  });
+
+  await t.test('13. HTTP 400 bad request error immediately aborts without hammering subsequent models', async () => {
+    const fetchMock = async (model) => {
+      if (model === 'gemini-3.5-flash-lite') {
+        return {
+          ok: false,
+          status: 400,
+          text: async () => '{"error": {"code": 400, "message": "Invalid argument: contents is required", "status": "INVALID_ARGUMENT"}}',
+        };
+      }
+      throw new Error('Should not reach fallback models on HTTP 400 bad request');
+    };
+
+    const result = await executeGeminiFallbackOrchestration({
+      candidateModels: standardCandidateModels,
+      fetchFn: fetchMock,
+    });
+
+    assert.equal(result.success, false);
+    assert.equal(result.attemptsLog.length, 1);
+    assert.equal(result.attemptsLog[0], 'gemini-3.5-flash-lite');
+    assert.match(result.lastAiError, /HTTP 400/);
   });
 });

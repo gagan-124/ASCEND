@@ -248,12 +248,12 @@ Deno.serve(async (req: Request) => {
     const primaryModel = (
       Deno.env.get("GEMINI_PRIMARY_MODEL") ||
       Deno.env.get("GEMINI_MODEL") ||
-      "gemini-2.5-flash"
+      "gemini-3.5-flash-lite"
     ).trim();
 
     const standardFallbacks = [
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-pro",
+      "gemini-3.1-flash-lite",
+      "gemini-3.8-flash",
     ];
 
     const candidateModels = [
@@ -345,13 +345,26 @@ Requirements:
             break;
           }
 
+          // Request / format error (400): Bad request format or schema; do not blindly retry other models
+          if (status === 400) {
+            lastAiError = `Invalid generation request format or parameters for model ${model} (HTTP 400)`;
+            console.error(`[EDGE_FUNCTION] Bad Request (HTTP 400) from model ${model}. Aborting model retries.`);
+            break;
+          }
+
           // Permanent Model Not Found: skip to next candidate
           if (status === 404) {
             lastAiError = `Model ${model} not supported by upstream API (HTTP 404)`;
             continue;
           }
 
-          // Upstream Demand / Overload / Rate-limit (503 / 429 / 5xx): retryable on fallback model
+          // Rate limit (429): retryable on subsequent fallback model within total deadline
+          if (status === 429) {
+            lastAiError = `Model ${model} rate limited (HTTP 429)`;
+            continue;
+          }
+
+          // Upstream Demand / Overload / Server error (503 / 5xx): retryable on fallback model
           lastAiError = `Model ${model} unavailable (HTTP ${status})`;
           continue;
         }
